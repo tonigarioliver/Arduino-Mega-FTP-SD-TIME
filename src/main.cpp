@@ -31,7 +31,7 @@ FTP ftp(ftpControl, ftpData);
 //////SD GLOBAL VARIABLES
 String logFileversion = "LogFile Version 2.1";
 SdFat SD;
-const long minfreesize =  31248200; ///free memory size in kB
+const long minfreesize =  3831670; ///free memory size in kB
 
 ////Global varibale for time library
 EthernetUDP ntpUDP;
@@ -75,18 +75,41 @@ bool writeSD( char*filename, String c){
   }
   return false;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+String getmilisecondsformat(float milis){
+  String milisecondsstring = String(milis);
+  milisecondsstring = milisecondsstring.substring((milisecondsstring.length()-2));
+  if(milisecondsstring.length() == 3){
+  }else{
+    if(milisecondsstring.length() == 2){
+      String c ="0";
+      c.concat(milisecondsstring);
+      milisecondsstring = c;
+    }else{
+      if(milisecondsstring.length() == 1){
+        String c ="00";
+        c.concat(milisecondsstring);
+        milisecondsstring = c;
+      }
+    }
+  }
+  return milisecondsstring;
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-int updatedsecondtimereference(){
-  long nowmilis=millis();
-  long elapsedtime=nowmilis-lastmillis;
+String updatedsecondtimereference(){
+  unsigned long nowmilis=millis();
+  unsigned long elapsedtime=nowmilis-lastmillis;
   lastsecond = lastsecond +(float(elapsedtime)/1000);
+  String dif=getmilisecondsformat(lastsecond);
   if(lastsecond>1){
     int coeficient = int(lastsecond);
     lastsecond = lastsecond-coeficient;
     Globaltime=Globaltime + coeficient;
   }
   lastmillis=lastmillis+long(elapsedtime);
-  return (elapsedtime%1000);
+  return dif;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -246,26 +269,18 @@ long ShowFreeSpace() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 String setmessage(float sensor,int num){
-  /*if(!timeClient.update()){
-    Serial.println(F("Error asking time for sensors"));
-  }*/
-  unsigned long t = timeClient.getEpochTime();
-  int mil=updatedsecondtimereference();////////////////////
-  unsigned long t1 = Globaltime;
-  Serial.println("tiempo");
-  char time[16];
-  sprintf(time,"%02d_%02d_%02d.", hour(t), minute(t), second(t));
-  char time1[16];
-  sprintf(time1,"%02d_%02d_%02d.", hour(t1), minute(t1), second(t1));
+  String milisecondframe=updatedsecondtimereference();////////////////////
+  unsigned long t = Globaltime;
+  char time[29];
+  sprintf(time, "%02d_%02d_%02d_%02d%02d%02d.", year(t), month(t), day(t), hour(t), minute(t), second(t));
   String c ="";
   c.concat(String(time));
-  c.concat(String(mil));
+  c.concat(milisecondframe);
   c.concat(";Sensor_");
   c.concat(String(num));
   c.concat("_mazzine;numbers;temperature;");
   c.concat(String(sensor));
   c.concat(";celsius");
-  Serial.println(c);
   return c;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -353,7 +368,6 @@ bool updatetimevalues(){
   return udpatetimevalue;
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(9600);
@@ -362,12 +376,9 @@ void setup() {
   {
     Serial.println(F("SD init fail"));          
   }
-    ////////////// Prepare SD files
-  ///// ClearSD 
   while(ShowFreeSpace()<minfreesize){
     deleteOldestFile();
   }
-
   while (Ethernet.begin(mac) == 0) {
     Serial.println(F("Failed to configure Ethernet using DHCP")); 
     delay(1000); // retry after 1 sec mantain funciton
@@ -384,26 +395,25 @@ void setup() {
   timeClient.update();
   delay(5000);
 
+  Globaltime = timeClient.getEpochTime();
+  int delaybeforestart=millis();
+  lastmillis=lastmillis+delaybeforestart;
+  updatedsecondtimereference();
+
   while(!updatetimevalues()){
     Serial.println(F("Failed to set time values"));
     if(!checkinternetStatus()){
       Serial.println(F("Failed update time due to DHCP"));
     }
-    delay(50); 
+    delayfunction(50); 
   }
   while(!ftp.connect(server, user, pass)){
     Serial.println(F("Error connecting to FTP server"));
-    delay(10);
+    delayfunction(10);
   }
   // Restart directory from server
   restartDirectory();
   ftp.stop();
-  Serial.println(F("Press w to updte file into directory"));
-  timeClient.update();
-  Globaltime = timeClient.getEpochTime();
-  int delaybeforestart=millis();
-  lastmillis=lastmillis+delaybeforestart;
-  updatedsecondtimereference();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -421,13 +431,14 @@ void loop() {
  
   if(currentTime - timechange > temperatureInterval/4) {
     timechange = currentTime;
-    unsigned long t = timeClient.getEpochTime();
+    updatedsecondtimereference();
+    unsigned long t = Globaltime;
     char timebufferchange[5];
-    sprintf(timebufferchange, "%02d",hour(t));
+    sprintf(timebufferchange, "%02d",minute(t));
     if(strcmp(timebufferchange,min) !=0){
       memcpy(min,timebufferchange,sizeof(timebufferchange));
     /////eliminate files if it is requiered
-      
+
       if(reset==true){
         reset =false;
       }else{
@@ -441,7 +452,6 @@ void loop() {
         ftp.stop();
       }
     
-
       while(ShowFreeSpace()<minfreesize){ ////
         deleteOldestFile();
       }
