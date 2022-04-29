@@ -48,7 +48,7 @@ bool reset =  true;
 
 unsigned long long Globaltime=0;
 unsigned long long lastmillis=0;
-
+float lastsecond = 0;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool createSDfile(char*filename,String version){
@@ -75,6 +75,20 @@ bool writeSD( char*filename, String c){
   }
   return false;
 }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+int updatedsecondtimereference(){
+  long nowmilis=millis();
+  long elapsedtime=nowmilis-lastmillis;
+  lastsecond = lastsecond +(float(elapsedtime)/1000);
+  if(lastsecond>1){
+    int coeficient = int(lastsecond);
+    lastsecond = lastsecond-coeficient;
+    Globaltime=Globaltime + coeficient;
+  }
+  lastmillis=lastmillis+long(elapsedtime);
+  return (elapsedtime%1000);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void delayfunction(int timedelay){
      unsigned start = millis();
@@ -124,7 +138,7 @@ bool updatedirectoryYear(){
     ftp.stop();
     while(!ftp.connect(server, user, pass)){
       Serial.println(F("Error connecting to FTP server"));
-      delay(100);
+      delayfunction(100);
     }
     if(!ftp.changedir(mainDir)){
       return false;
@@ -149,7 +163,7 @@ bool updatedirectoryMonth(){
     ftp.stop();
     while(!ftp.connect(server, user, pass)){
       Serial.println(F("Error connecting to FTP server"));
-      delay(100);
+      delayfunction(100);
     }
     if(!ftp.changedir(mainDir)){
       return false;
@@ -178,7 +192,7 @@ bool updatedirectoryDay(){
     ftp.stop();
     while(!ftp.connect(server, user, pass)){
       Serial.println(F("Error connecting to FTP server"));
-      delay(100);
+      delayfunction(100);
     }
     if(!ftp.changedir(mainDir)){
       return false;
@@ -210,11 +224,11 @@ void updateDirectory(){
     Serial.println("Error changing main directory");
   }else{
     while(!updatedirectoryYear());
-    delay(10);
+    delayfunction(10);
     while(!updatedirectoryMonth());
-    delay(10);
+    delayfunction(10);
     while(!updatedirectoryDay());
-    delay(10);
+    delayfunction(10);
   }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -236,16 +250,22 @@ String setmessage(float sensor,int num){
     Serial.println(F("Error asking time for sensors"));
   }*/
   unsigned long t = timeClient.getEpochTime();
+  int mil=updatedsecondtimereference();////////////////////
+  unsigned long t1 = Globaltime;
+  Serial.println("tiempo");
   char time[16];
-  sprintf(time,"%02d_%02d_%02d;", hour(t), minute(t), second(t));
-  Serial.println(time);
+  sprintf(time,"%02d_%02d_%02d.", hour(t), minute(t), second(t));
+  char time1[16];
+  sprintf(time1,"%02d_%02d_%02d.", hour(t1), minute(t1), second(t1));
   String c ="";
   c.concat(String(time));
-  c.concat("Sensor_");
+  c.concat(String(mil));
+  c.concat(";Sensor_");
   c.concat(String(num));
   c.concat("_mazzine;numbers;temperature;");
   c.concat(String(sensor));
   c.concat(";celsius");
+  Serial.println(c);
   return c;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -277,7 +297,7 @@ void deleteOldestFile(){
     // Skip directories and hidden files.
     if (!file.isSubDir() && !file.isHidden()) {
       file.dirEntry(&dir);
-      lastModified = (uint16_t (dir.lastWriteDate) << 16 | dir.lastWriteTime); ///test uint32
+      lastModified = (uint32_t (dir.lastWriteDate) << 16 | dir.lastWriteTime); ///test uint32
       if (lastModified < oldestModified ) {
         oldestModified = lastModified;
         oldestFile = file;
@@ -321,7 +341,6 @@ bool checkinternetStatus(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool updatetimevalues(){
   bool udpatetimevalue = false;
-  //if(timeClient.update()){
     unsigned long t = timeClient.getEpochTime();
     char buff[32];
     sprintf(dayDir,"%02d",day(t));
@@ -331,7 +350,6 @@ bool updatetimevalues(){
     sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(t), month(t), year(t), hour(t), minute(t), second(t));
     Serial.println(buff);
     udpatetimevalue = true;
-  //}
   return udpatetimevalue;
 }
 
@@ -364,9 +382,8 @@ void setup() {
   timeClient.begin();
   delay(2000);
   timeClient.update();
-  unsigned long t = timeClient.getEpochTime();
+  delay(5000);
 
-  delay(2000);
   while(!updatetimevalues()){
     Serial.println(F("Failed to set time values"));
     if(!checkinternetStatus()){
@@ -382,6 +399,11 @@ void setup() {
   restartDirectory();
   ftp.stop();
   Serial.println(F("Press w to updte file into directory"));
+  timeClient.update();
+  Globaltime = timeClient.getEpochTime();
+  int delaybeforestart=millis();
+  lastmillis=lastmillis+delaybeforestart;
+  updatedsecondtimereference();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -411,7 +433,7 @@ void loop() {
       }else{
         while(!ftp.connect(server, user, pass)){
         Serial.println(F("Error connecting to FTP server"));
-        delay(100);
+        delayfunction(100);
         }
         updateDirectory();
         File fh = SD.open(fileName,FILE_READ);
@@ -428,7 +450,7 @@ void loop() {
         if(!checkinternetStatus()){
           Serial.println(F("Failed update time due to DHCP"));
         }
-        delay(50); 
+        delayfunction(50); 
       }
       if(!createSDfile(fileName,logFileversion)){
         Serial.println(F("Error creating new file"));
