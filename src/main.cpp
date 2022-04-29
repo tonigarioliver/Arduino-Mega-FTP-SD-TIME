@@ -44,6 +44,7 @@ unsigned long temperatureInterval = 1000;
 int numsensors = 4;
 unsigned long timechange = 0;
 char min[5]="00";
+char hours[5]="00";
 bool reset =  true;
 
 unsigned long long Globaltime=0;
@@ -434,7 +435,14 @@ void loop() {
     updatedsecondtimereference();
     unsigned long t = Globaltime;
     char timebufferchange[5];
-    sprintf(timebufferchange, "%02d",minute(t));
+
+    sprintf(timebufferchange, "%02d",hour(t));
+    if(strcmp(timebufferchange,hours) !=0){
+      memcpy(hours,timebufferchange,sizeof(timebufferchange));
+      checkinternetStatus();
+    }
+
+    sprintf(timebufferchange, "%02d",hour(t));
     if(strcmp(timebufferchange,min) !=0){
       memcpy(min,timebufferchange,sizeof(timebufferchange));
     /////eliminate files if it is requiered
