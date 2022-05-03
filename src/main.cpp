@@ -29,7 +29,7 @@ FTP ftp(ftpControl, ftpData);
 
 
 //////SD GLOBAL VARIABLES
-String logFileversion = "LogFile Version 2.1";
+const String logFileversion = "LogFile Version 2.1";
 SdFat SD;
 const long minfreesize =  3831670; ///free memory size in kB
 
@@ -37,12 +37,12 @@ const long minfreesize =  3831670; ///free memory size in kB
 EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 unsigned long temperatureTime = 0;
-unsigned long temperatureInterval = 1000; 
+const int temperatureInterval = 1000; 
 
 
 ////Other Global variables
-int numsensors = 4;
-unsigned long timechange = 0;
+const int numsensors = 4;
+unsigned long timechange = 0; //timmer record for check time ftp
 char min[5]="00";
 char hours[5]="00";
 bool reset =  true;
@@ -105,9 +105,8 @@ String updatedsecondtimereference(){
   lastsecond = lastsecond +(float(elapsedtime)/1000);
   String dif=getmilisecondsformat(lastsecond);
   if(lastsecond>1){
-    int coeficient = int(lastsecond);
-    lastsecond = lastsecond-coeficient;
-    Globaltime=Globaltime + coeficient;
+    Globaltime=Globaltime + int(lastsecond);
+    lastsecond = lastsecond-int(lastsecond);
   }
   lastmillis=lastmillis+long(elapsedtime);
   return dif;
@@ -168,7 +167,7 @@ bool updatedirectoryYear(){
       return false;
     }else{
       if(!ftp.makedir(yearDir)){
-        Serial.println(F("Error creating day directory"));
+        Serial.println(F("Error creating year directory"));
         return false;
       }else{
         ftp.changedir(yearDir);
@@ -196,7 +195,7 @@ bool updatedirectoryMonth(){
         return false;
       }else{
         if(!ftp.makedir(monthDir)){
-          Serial.println(F("Error creating day directory"));
+          Serial.println(F("Error creating month directory"));
           return false;
         }else{
           ftp.changedir(monthDir);
@@ -415,6 +414,7 @@ void setup() {
   // Restart directory from server
   restartDirectory();
   ftp.stop();
+  //////check createsdfile
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -442,6 +442,8 @@ void loop() {
       checkinternetStatus();
     }
 
+    updatedsecondtimereference();
+    t = Globaltime;
     sprintf(timebufferchange, "%02d",hour(t));
     if(strcmp(timebufferchange,min) !=0){
       memcpy(min,timebufferchange,sizeof(timebufferchange));
