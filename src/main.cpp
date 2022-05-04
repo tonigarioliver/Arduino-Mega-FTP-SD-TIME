@@ -3,12 +3,19 @@
 // FTP library example
 // by Industrial Shields
 
-
 #include <FTP.h>
 #include <SdFat.h>
 #include <Ethernet.h>
 #include <TimeLib.h>     // for update/display of time
 #include <NTPClient.h>
+#include <Adafruit_MAX31865.h>
+//////////////////////////PT100 parameters
+#define RREF      430.0
+#define RNOMINAL  100.0
+Adafruit_MAX31865 thermo0 = Adafruit_MAX31865(2,3,4,5);
+Adafruit_MAX31865 thermo1 = Adafruit_MAX31865(2,3,4,5);
+Adafruit_MAX31865 thermo2 = Adafruit_MAX31865(2,3,4,5);
+
 ////////////////Ethernet MAC for DHCP
 uint8_t mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79 };  
 
@@ -371,6 +378,10 @@ bool updatetimevalues(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(9600);
+  /*
+  thermo0.begin(MAX31865_4WIRE);  // set to 2WIRE or 4WIRE as necessary
+  thermo1.begin(MAX31865_4WIRE);  
+  thermo2.begin(MAX31865_4WIRE);*/ 
 
   if(SD.begin(4) == 0)
   {
@@ -444,7 +455,7 @@ void loop() {
 
     updatedsecondtimereference();
     t = Globaltime;
-    sprintf(timebufferchange, "%02d",hour(t));
+    sprintf(timebufferchange, "%02d",day(t));
     if(strcmp(timebufferchange,min) !=0){
       memcpy(min,timebufferchange,sizeof(timebufferchange));
     /////eliminate files if it is requiered
