@@ -60,7 +60,7 @@ unsigned long timechange = 0; //timmer record for check time ftp
 char min[5]="00";
 char hours[5]="00";
 bool reset =  true;
-
+bool datachange = false;
 unsigned long long Globaltime=0;
 unsigned long long lastmillis=0;
 float lastsecond = 0;
@@ -98,8 +98,9 @@ String getmilisecondsformat(float milis){
   if(milisecondsstring.length() == 3){
   }else{
     if(milisecondsstring.length() == 2){
-      String c ="0";
+      String c ="";
       c.concat(milisecondsstring);
+      c.concat("0");
       milisecondsstring = c;
     }else{
       if(milisecondsstring.length() == 1){
@@ -283,29 +284,39 @@ long ShowFreeSpace() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 String setmessage(float sensor,int num){
+  String c ="";
+  String c1 ="";
   String milisecondframe=updatedsecondtimereference();////////////////////
   unsigned long t = Globaltime;
   char time[29];
   sprintf(time, "%02d_%02d_%02d_%02d%02d%02d.", year(t), month(t), day(t), hour(t), minute(t), second(t));
-  String c ="";
-  c.concat(String(time));
-  c.concat(milisecondframe);
-  c.concat(";Sensor_");
-  c.concat(String(num));
-  c.concat("_mazzine;numbers;temperature;");
-  c.concat(String(sensor));
-  c.concat(";celsius");
-  lcd.print("hello, world!");
+  char timebuffer[5];
+  sprintf(timebuffer, "%02d",minute(t));
+  if(strcmp(timebuffer,min) !=0){
+    memcpy(min,timebuffer,sizeof(timebuffer));
+    datachange = true;
+  }else{
+    c1.concat("Temp: ");
+    c1.concat(sensor);
+    c.concat(String(time));
+    c.concat(milisecondframe);
+    c.concat(";Sensor_");
+    c.concat(String(num));
+    c.concat("_mazzine;numbers;temperature;");
+    c.concat(String(sensor));
+    c.concat(";celsius");
+    //lcd.setCursor(0, (num-1));
+    //lcd.print(c1);
+  }
   return c;
+
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-bool setSDframe(float *temp){
+bool setSDframe(float temp,int i){
   bool successetSDframe=true;
-  for(int i=0;i<numsensors;i++){
-    String c = setmessage(temp[i],i+1);
-    if(!writeSD(fileName,c)){
-      successetSDframe=false;
-    }
+  String c = setmessage(temp,i+1);
+  if(!writeSD(fileName,c)){
+    successetSDframe=false;
   }
   return successetSDframe;
 }
@@ -340,12 +351,27 @@ void deleteOldestFile(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-float readtemperature(float *temp,int num){
-  temp[0]=thermo0.temperature(RNOMINAL, RREF);
-  temp[1]=thermo1.temperature(RNOMINAL, RREF);
-  temp[2]=thermo2.temperature(RNOMINAL, RREF);
-  temp[3]=thermo3.temperature(RNOMINAL, RREF);
-  return *temp;
+float readtemperature(int num){
+  float temperature;
+  switch (num){
+    case 0:
+      temperature = thermo0.temperature(RNOMINAL, RREF);
+      break;
+    case 1:
+      temperature =thermo1.temperature(RNOMINAL, RREF);
+      break;
+    case 2:
+      temperature = thermo2.temperature(RNOMINAL, RREF);
+      break;
+    case 3:
+      temperature = thermo3.temperature(RNOMINAL, RREF);
+      break;
+    default:
+      temperature = 0;
+      break;
+  }
+  
+  return temperature;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool checkinternetStatus(){
@@ -387,6 +413,7 @@ bool updatetimevalues(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(9600);
+  lcd.begin(20, 4);
   
   thermo0.begin(MAX31865_4WIRE);  // set to 2WIRE or 4WIRE as necessary
   thermo1.begin(MAX31865_4WIRE);  
@@ -410,7 +437,6 @@ void setup() {
   Serial.print(F("IP address: "));
   Serial.println(Ethernet.localIP());
   delay(5000);
-  lcd.begin(20, 4);
   ///// Check to deletfile
   //// ask for time
   timeClient.begin();
@@ -446,10 +472,13 @@ void loop() {
   timeClient.update();
   if(currentTime - temperatureTime > temperatureInterval) {
     temperatureTime = currentTime;
-    float temperature[numsensors];
-    readtemperature(temperature,numsensors);              //create temperature array for all sensor
-    if(!setSDframe(temperature)){                           //set 1 message for each sensor
-      Serial.println(F("Error writing at least 1 frame in SD File"));
+    for(int i = 0; i<numsensors;i++){
+      if(datachange == false){
+        float temp = readtemperature(i);              //create temperature array for all sensor
+        if(!setSDframe(temp,i)){                           //set 1 message for each sensor
+          Serial.println(F("Error writing at least 1 frame in SD File"));
+        }
+      }
     }
   }
  
@@ -468,7 +497,8 @@ void loop() {
     updatedsecondtimereference();
     t = Globaltime;
     sprintf(timebufferchange, "%02d",minute(t));
-    if(strcmp(timebufferchange,min) !=0){
+    if((datachange == true)||(strcmp(timebufferchange,min) !=0)){
+      datachange = false;
       memcpy(min,timebufferchange,sizeof(timebufferchange));
     /////eliminate files if it is requiered
 
@@ -485,15 +515,15 @@ void loop() {
         ftp.stop();
       }
     
-      while(ShowFreeSpace()<minfreesize){ ////
-        deleteOldestFile();
-      }
       while(!updatetimevalues()){
         Serial.println(F("Failed to set time values"));
         if(!checkinternetStatus()){
           Serial.println(F("Failed update time due to DHCP"));
         }
         delayfunction(50); 
+      }
+      while(ShowFreeSpace()<minfreesize){ ////
+        deleteOldestFile();
       }
       if(!createSDfile(fileName,logFileversion)){
         Serial.println(F("Error creating new file"));
