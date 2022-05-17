@@ -12,9 +12,10 @@
 //////////////////////////PT100 parameters
 #define RREF      430.0
 #define RNOMINAL  100.0
-Adafruit_MAX31865 thermo0 = Adafruit_MAX31865(2,3,4,5);
-Adafruit_MAX31865 thermo1 = Adafruit_MAX31865(2,3,4,5);
-Adafruit_MAX31865 thermo2 = Adafruit_MAX31865(2,3,4,5);
+Adafruit_MAX31865 thermo0 = Adafruit_MAX31865(2,6,7,8);
+Adafruit_MAX31865 thermo1 = Adafruit_MAX31865(3,6,7,8);
+Adafruit_MAX31865 thermo2 = Adafruit_MAX31865(4,6,7,8);
+Adafruit_MAX31865 thermo3 = Adafruit_MAX31865(5,6,7,8);
 
 ////////////////Ethernet MAC for DHCP
 uint8_t mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79 };  
@@ -46,6 +47,12 @@ NTPClient timeClient(ntpUDP);
 unsigned long temperatureTime = 0;
 const int temperatureInterval = 1000; 
 
+////////////////////////////////////////////////
+#include "Wire.h"
+#include "Adafruit_LiquidCrystal.h"
+
+// Connect via i2c, default address #0 (A0-A2 not jumpered)
+Adafruit_LiquidCrystal lcd(0);
 
 ////Other Global variables
 const int numsensors = 4;
@@ -288,6 +295,7 @@ String setmessage(float sensor,int num){
   c.concat("_mazzine;numbers;temperature;");
   c.concat(String(sensor));
   c.concat(";celsius");
+  lcd.print("hello, world!");
   return c;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -333,9 +341,10 @@ void deleteOldestFile(){
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float readtemperature(float *temp,int num){
-  for(int i=0;i<numsensors;i++){
-    temp[i]=i+1;
-  }
+  temp[0]=thermo0.temperature(RNOMINAL, RREF);
+  temp[1]=thermo1.temperature(RNOMINAL, RREF);
+  temp[2]=thermo2.temperature(RNOMINAL, RREF);
+  temp[3]=thermo3.temperature(RNOMINAL, RREF);
   return *temp;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -378,10 +387,11 @@ bool updatetimevalues(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void setup() {
   Serial.begin(9600);
-  /*
+  
   thermo0.begin(MAX31865_4WIRE);  // set to 2WIRE or 4WIRE as necessary
   thermo1.begin(MAX31865_4WIRE);  
-  thermo2.begin(MAX31865_4WIRE);*/ 
+  thermo2.begin(MAX31865_4WIRE);
+  thermo3.begin(MAX31865_4WIRE);
 
   if(SD.begin(4) == 0)
   {
@@ -390,6 +400,8 @@ void setup() {
   while(ShowFreeSpace()<minfreesize){
     deleteOldestFile();
   }
+
+
   while (Ethernet.begin(mac) == 0) {
     Serial.println(F("Failed to configure Ethernet using DHCP")); 
     delay(1000); // retry after 1 sec mantain funciton
@@ -398,7 +410,7 @@ void setup() {
   Serial.print(F("IP address: "));
   Serial.println(Ethernet.localIP());
   delay(5000);
-
+  lcd.begin(20, 4);
   ///// Check to deletfile
   //// ask for time
   timeClient.begin();
@@ -434,7 +446,7 @@ void loop() {
   timeClient.update();
   if(currentTime - temperatureTime > temperatureInterval) {
     temperatureTime = currentTime;
-    float temperature[numsensors-1];
+    float temperature[numsensors];
     readtemperature(temperature,numsensors);              //create temperature array for all sensor
     if(!setSDframe(temperature)){                           //set 1 message for each sensor
       Serial.println(F("Error writing at least 1 frame in SD File"));
@@ -455,7 +467,7 @@ void loop() {
 
     updatedsecondtimereference();
     t = Globaltime;
-    sprintf(timebufferchange, "%02d",day(t));
+    sprintf(timebufferchange, "%02d",minute(t));
     if(strcmp(timebufferchange,min) !=0){
       memcpy(min,timebufferchange,sizeof(timebufferchange));
     /////eliminate files if it is requiered
