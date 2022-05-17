@@ -15,14 +15,13 @@
 //////////////////////////PT100 parameters
 #define RREF      430.0
 #define RNOMINAL  100.0
-Adafruit_MAX31865 thermo0 = Adafruit_MAX31865(2,6,7,8);
-Adafruit_MAX31865 thermo1 = Adafruit_MAX31865(3,6,7,8);
-Adafruit_MAX31865 thermo2 = Adafruit_MAX31865(4,6,7,8);
-Adafruit_MAX31865 thermo3 = Adafruit_MAX31865(5,6,7,8);
-float temp1;
-float temp2;
-float temp3;
-float temp4;
+Adafruit_MAX31865 listsensors[] = {
+  Adafruit_MAX31865(2,6,7,8),
+  Adafruit_MAX31865(3,6,7,8),
+  Adafruit_MAX31865(4,6,7,8),
+  Adafruit_MAX31865(5,6,7,8)
+};
+float lasttempreadings[4] ={};
 
 ////////////////Ethernet MAC for DHCP
 uint8_t mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79 };  
@@ -48,10 +47,13 @@ const String logFileversion = "LogFile Version 2.1";
 SdFat SD;
 const long minfreesize =  3831670; ///free memory size in kB
 ///LogObjects
-Log_Features Sensor1(2000,0);
-Log_Features Sensor2(1000,0);
-Log_Features Sensor3(2000,0);
-Log_Features Sensor4(1000,0);
+Log_Features listlogsensor[] = {
+  Log_Features(2000,0),
+  Log_Features(1000,0),
+  Log_Features(2000,0),
+  Log_Features(1000,0),
+};
+
 
 //////////////////LCD
 int numLCD = 1;
@@ -385,33 +387,33 @@ float readtemperature(int num,int numsamples){
   float temperature;
   switch (num){
     case 1:
-      temperature = thermo0.temperature(RNOMINAL, RREF);
+      temperature = listsensors[num-1].temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
-        temperature =temperature + (thermo0.temperature(RNOMINAL, RREF));
+        temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
       break;
 
     case 2:
-      temperature =thermo1.temperature(RNOMINAL, RREF);
+      temperature =listsensors[num-1].temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
-        temperature =temperature + (thermo1.temperature(RNOMINAL, RREF));
+        temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
       break;
 
     case 3:
-      temperature = thermo2.temperature(RNOMINAL, RREF);
+      temperature = listsensors[num-1].temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
-        temperature =temperature + (thermo2.temperature(RNOMINAL, RREF));
+        temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
       break;
 
     case 4:
-      temperature = thermo3.temperature(RNOMINAL, RREF);
+      temperature = listsensors[num-1].temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
-        temperature =temperature + (thermo3.temperature(RNOMINAL, RREF));
+        temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
       break;
@@ -470,11 +472,9 @@ bool updatetimevalues(){
 void setup() {
   Serial.begin(9600);
   lcd.begin(20, 4);
-  
-  thermo0.begin(MAX31865_4WIRE);  // set to 2WIRE or 4WIRE as necessary
-  thermo1.begin(MAX31865_4WIRE);  
-  thermo2.begin(MAX31865_4WIRE);
-  thermo3.begin(MAX31865_4WIRE);
+  for(int i = 0; i<numsensors; i++){
+    listsensors[i].begin(MAX31865_4WIRE);
+  }
 
   if(SD.begin(4) == 0)
   {
@@ -524,51 +524,38 @@ void setup() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
-  //unsigned long currentTime = millis();
   timeClient.update();
-  /*if(currentTime - temperatureTime > temperatureInterval) {
-    temperatureTime = currentTime;
-    for(int i = 0; i<numsensors;i++){
-      if(datachange == false){
-        int numsamples = 20;
-        float temp = readtemperature(i,numsamples);              //create temperature array for all sensor
-        if(!setSDframe(temp,i)){                           //set 1 message for each sensor
-          Serial.println(F("Error writing at least 1 frame in SD File"));
-        }
-      }
-    }
-  }*/
   int numsamples = 20;
   updatedsecondtimereference();
   unsigned long long timmermillis = lastmillis;  
   if(datachange == false){
-    temp1 = readtemperature(1,numsamples);
-    if(Sensor1.enablelog(timmermillis)){  //create temperature array for all sensor
-      if(!setSDframe(temp1,1)){                           //set 1 message for each sensor
+    lasttempreadings[numsensors-4] = readtemperature(1,numsamples);
+    if(listlogsensor[numsensors-4].enablelog(timmermillis)){  //create temperature array for all sensor
+      if(!setSDframe(lasttempreadings[numsensors-4],1)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
   if(datachange == false){
-    temp2 = readtemperature(2,numsamples);              //create temperature array for all sensor
-    if(Sensor2.enablelog(timmermillis)){  
-      if(!setSDframe(temp2,2)){                           //set 1 message for each sensor
+    lasttempreadings[numsensors-3] = readtemperature(2,numsamples);              //create temperature array for all sensor
+    if(listlogsensor[numsensors-3].enablelog(timmermillis)){  
+      if(!setSDframe(lasttempreadings[numsensors-3],2)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
   if(datachange == false){
-    temp3 = readtemperature(3,numsamples);              //create temperature array for all sensor
-    if(Sensor3.enablelog(timmermillis)){
-      if(!setSDframe(temp3,3)){                           //set 1 message for each sensor
+    lasttempreadings[numsensors-2] = readtemperature(3,numsamples);              //create temperature array for all sensor
+    if(listlogsensor[numsensors-2].enablelog(timmermillis)){
+      if(!setSDframe(lasttempreadings[numsensors-2],3)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
   if(datachange == false){
-    temp4 = readtemperature(4,numsamples);              //create temperature array for all sensor
-    if(Sensor4.enablelog(timmermillis)){   
-      if(!setSDframe(temp4,4)){                           //set 1 message for each sensor
+    lasttempreadings[numsensors-1] = readtemperature(4,numsamples);              //create temperature array for all sensor
+    if(listlogsensor[numsensors-1].enablelog(timmermillis)){   
+      if(!setSDframe(lasttempreadings[numsensors-1],4)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
@@ -579,22 +566,22 @@ void loop() {
     lcdTime = currentTime;
     switch(numLCD){
       case 1:
-        setLCD(temp1,1);
+        setLCD(lasttempreadings[numsensors-4],numLCD);
         numLCD++;
         break;
 
       case 2:
-        setLCD(temp2,2);
+        setLCD(lasttempreadings[numsensors-3],numLCD);
         numLCD++;
         break;
 
       case 3:
-        setLCD(temp3,3);
+        setLCD(lasttempreadings[numsensors-2],numLCD);
         numLCD++;
         break;
 
       case 4:
-        setLCD(temp4,4);
+        setLCD(lasttempreadings[numsensors-1],numLCD);
         numLCD = 1;
         break;
     }
