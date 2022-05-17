@@ -9,6 +9,7 @@
 #include <TimeLib.h>     // for update/display of time
 #include <NTPClient.h>
 #include <Adafruit_MAX31865.h>
+#include <Log_Features.h>
 //////////////////////////PT100 parameters
 #define RREF      430.0
 #define RNOMINAL  100.0
@@ -16,6 +17,10 @@ Adafruit_MAX31865 thermo0 = Adafruit_MAX31865(2,6,7,8);
 Adafruit_MAX31865 thermo1 = Adafruit_MAX31865(3,6,7,8);
 Adafruit_MAX31865 thermo2 = Adafruit_MAX31865(4,6,7,8);
 Adafruit_MAX31865 thermo3 = Adafruit_MAX31865(5,6,7,8);
+float temp1;
+float temp2;
+float temp3;
+float temp4;
 
 ////////////////Ethernet MAC for DHCP
 uint8_t mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79 };  
@@ -40,12 +45,20 @@ FTP ftp(ftpControl, ftpData);
 const String logFileversion = "LogFile Version 2.1";
 SdFat SD;
 const long minfreesize =  3831670; ///free memory size in kB
+///LogObjects
+Log_Features Sensor1(2000,0);
+Log_Features Sensor2(1000,0);
+Log_Features Sensor3(2000,0);
+Log_Features Sensor4(1000,0);
+
+//////////////////LCD
+int numLCD = 1;
 
 ////Global varibale for time library
 EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
-unsigned long temperatureTime = 0;
-const int temperatureInterval = 1000; 
+unsigned long lcdTime = 0;
+const int lcdInterval = 1000; 
 
 ////////////////////////////////////////////////
 #include "Wire.h"
@@ -304,8 +317,8 @@ void setLCD(float sensor,int num){
   c.concat(sensor);
   lcd.setCursor(0,3);
   lcd.print(c);
-
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 String setmessage(float sensor,int num){
   String c ="";
@@ -319,7 +332,6 @@ String setmessage(float sensor,int num){
     memcpy(min,timebuffer,sizeof(timebuffer));
     datachange = true;
   }else{
-    setLCD(sensor, num);
     c.concat(String(time));
     c.concat(milisecondframe);
     c.concat(";Sensor_");
@@ -334,7 +346,7 @@ String setmessage(float sensor,int num){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool setSDframe(float temp,int i){
   bool successetSDframe=true;
-  String c = setmessage(temp,i+1);
+  String c = setmessage(temp,i);
   if(!writeSD(fileName,c)){
     successetSDframe=false;
   }
@@ -374,7 +386,7 @@ void deleteOldestFile(){
 float readtemperature(int num,int numsamples){
   float temperature;
   switch (num){
-    case 0:
+    case 1:
       temperature = thermo0.temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
         temperature =temperature + (thermo0.temperature(RNOMINAL, RREF));
@@ -382,7 +394,7 @@ float readtemperature(int num,int numsamples){
       temperature = temperature/(numsamples+1);
       break;
 
-    case 1:
+    case 2:
       temperature =thermo1.temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
         temperature =temperature + (thermo1.temperature(RNOMINAL, RREF));
@@ -390,7 +402,7 @@ float readtemperature(int num,int numsamples){
       temperature = temperature/(numsamples+1);
       break;
 
-    case 2:
+    case 3:
       temperature = thermo2.temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
         temperature =temperature + (thermo2.temperature(RNOMINAL, RREF));
@@ -398,7 +410,7 @@ float readtemperature(int num,int numsamples){
       temperature = temperature/(numsamples+1);
       break;
 
-    case 3:
+    case 4:
       temperature = thermo3.temperature(RNOMINAL, RREF);
       for(int i = 0; i< numsamples; i++){
         temperature =temperature + (thermo3.temperature(RNOMINAL, RREF));
@@ -514,9 +526,9 @@ void setup() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
-  unsigned long currentTime = millis();
+  //unsigned long currentTime = millis();
   timeClient.update();
-  if(currentTime - temperatureTime > temperatureInterval) {
+  /*if(currentTime - temperatureTime > temperatureInterval) {
     temperatureTime = currentTime;
     for(int i = 0; i<numsensors;i++){
       if(datachange == false){
@@ -527,55 +539,112 @@ void loop() {
         }
       }
     }
+  }*/
+  int numsamples = 20;
+  updatedsecondtimereference();
+  unsigned long long timmermillis = lastmillis;  
+  if(datachange == false){
+    temp1 = readtemperature(1,numsamples);
+    if(Sensor1.enablelog(timmermillis)){  //create temperature array for all sensor
+      if(!setSDframe(temp1,1)){                           //set 1 message for each sensor
+        Serial.println(F("Error writing at least 1 frame in SD File"));
+      }
+    }
+  }
+  if(datachange == false){
+    temp2 = readtemperature(2,numsamples);              //create temperature array for all sensor
+    if(Sensor2.enablelog(timmermillis)){  
+      if(!setSDframe(temp2,2)){                           //set 1 message for each sensor
+        Serial.println(F("Error writing at least 1 frame in SD File"));
+      }
+    }
+  }
+  if(datachange == false){
+    temp3 = readtemperature(3,numsamples);              //create temperature array for all sensor
+    if(Sensor3.enablelog(timmermillis)){
+      if(!setSDframe(temp3,3)){                           //set 1 message for each sensor
+        Serial.println(F("Error writing at least 1 frame in SD File"));
+      }
+    }
+  }
+  if(datachange == false){
+    temp4 = readtemperature(4,numsamples);              //create temperature array for all sensor
+    if(Sensor4.enablelog(timmermillis)){   
+      if(!setSDframe(temp4,4)){                           //set 1 message for each sensor
+        Serial.println(F("Error writing at least 1 frame in SD File"));
+      }
+    }
+  }
+  
+  unsigned long currentTime = millis();
+  if(currentTime - lcdTime > lcdInterval) {
+    lcdTime = currentTime;
+    switch(numLCD){
+      case 1:
+        setLCD(temp1,1);
+        numLCD++;
+        break;
+
+      case 2:
+        setLCD(temp2,2);
+        numLCD++;
+        break;
+
+      case 3:
+        setLCD(temp3,3);
+        numLCD++;
+        break;
+
+      case 4:
+        setLCD(temp4,4);
+        numLCD = 1;
+        break;
+    }
   }
 
- 
-  if(currentTime - timechange > temperatureInterval/4) {
-    timechange = currentTime;
-    updatedsecondtimereference();
-    unsigned long t = Globaltime;
-    char timebufferchange[5];
+  updatedsecondtimereference();
+  unsigned long t = Globaltime;
+  char timebufferchange[5];
 
-    sprintf(timebufferchange, "%02d",hour(t));
-    if(strcmp(timebufferchange,hours) !=0){
-      memcpy(hours,timebufferchange,sizeof(timebufferchange));
-      checkinternetStatus();
+  sprintf(timebufferchange, "%02d",hour(t));
+  if(strcmp(timebufferchange,hours) !=0){
+    memcpy(hours,timebufferchange,sizeof(timebufferchange));
+    checkinternetStatus();
+  }
+
+  updatedsecondtimereference();
+  t = Globaltime;
+  sprintf(timebufferchange, "%02d",minute(t));
+  if((datachange == true)||(strcmp(timebufferchange,min) !=0)){
+    datachange = false;
+    memcpy(min,timebufferchange,sizeof(timebufferchange));
+  /////eliminate files if it is requiered
+
+    if(reset==true){
+      reset =false;
+    }else{
+      while(!ftp.connect(server, user, pass)){
+      Serial.println(F("Error connecting to FTP server"));
+      delayfunction(100);
+      }
+      updateDirectory();
+      File fh = SD.open(fileName,FILE_READ);
+      ftp.store(fileName, fh);
+      ftp.stop();
     }
-
-    updatedsecondtimereference();
-    t = Globaltime;
-    sprintf(timebufferchange, "%02d",minute(t));
-    if((datachange == true)||(strcmp(timebufferchange,min) !=0)){
-      datachange = false;
-      memcpy(min,timebufferchange,sizeof(timebufferchange));
-    /////eliminate files if it is requiered
-
-      if(reset==true){
-        reset =false;
-      }else{
-        while(!ftp.connect(server, user, pass)){
-        Serial.println(F("Error connecting to FTP server"));
-        delayfunction(100);
-        }
-        updateDirectory();
-        File fh = SD.open(fileName,FILE_READ);
-        ftp.store(fileName, fh);
-        ftp.stop();
+  
+    while(!updatetimevalues()){
+      Serial.println(F("Failed to set time values"));
+      if(!checkinternetStatus()){
+        Serial.println(F("Failed update time due to DHCP"));
       }
-    
-      while(!updatetimevalues()){
-        Serial.println(F("Failed to set time values"));
-        if(!checkinternetStatus()){
-          Serial.println(F("Failed update time due to DHCP"));
-        }
-        delayfunction(50); 
-      }
-      while(ShowFreeSpace()<minfreesize){ ////
-        deleteOldestFile();
-      }
-      if(!createSDfile(fileName,logFileversion)){
-        Serial.println(F("Error creating new file"));
-      }
+      delayfunction(50); 
+    }
+    while(ShowFreeSpace()<minfreesize){ ////
+      deleteOldestFile();
+    }
+    if(!createSDfile(fileName,logFileversion)){
+      Serial.println(F("Error creating new file"));
     }
   }  
 }
