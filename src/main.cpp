@@ -69,11 +69,10 @@ Adafruit_LiquidCrystal lcd(0);
 
 ////Other Global variables
 const int numsensors = 4;
-unsigned long timechange = 0; //timmer record for check time ftp
+bool timechange = false; //timmer record for check time ftp
 char min[5]="00";
 char hours[5]="00";
 bool reset =  true;
-bool datachange = false;
 unsigned long long Globaltime=0;
 unsigned long long lastmillis=0;
 float lastsecond = 0;
@@ -330,7 +329,7 @@ String setmessage(float sensor,int num){
   sprintf(timebuffer, "%02d",minute(t));////////////////change it
   if(strcmp(timebuffer,min) !=0){
     memcpy(min,timebuffer,sizeof(timebuffer));
-    datachange = true;
+    timechange = true;
   }else{
     c.concat(String(time));
     c.concat(milisecondframe);
@@ -528,7 +527,7 @@ void loop() {
   int numsamples = 20;
   updatedsecondtimereference();
   unsigned long long timmermillis = lastmillis;  
-  if(datachange == false){
+  if(timechange == false){
     lasttempreadings[numsensors-4] = readtemperature(1,numsamples);
     if(listlogsensor[numsensors-4].enablelog(timmermillis)){  //create temperature array for all sensor
       if(!setSDframe(lasttempreadings[numsensors-4],1)){                           //set 1 message for each sensor
@@ -536,7 +535,7 @@ void loop() {
       }
     }
   }
-  if(datachange == false){
+  if(timechange == false){
     lasttempreadings[numsensors-3] = readtemperature(2,numsamples);              //create temperature array for all sensor
     if(listlogsensor[numsensors-3].enablelog(timmermillis)){  
       if(!setSDframe(lasttempreadings[numsensors-3],2)){                           //set 1 message for each sensor
@@ -544,7 +543,7 @@ void loop() {
       }
     }
   }
-  if(datachange == false){
+  if(timechange == false){
     lasttempreadings[numsensors-2] = readtemperature(3,numsamples);              //create temperature array for all sensor
     if(listlogsensor[numsensors-2].enablelog(timmermillis)){
       if(!setSDframe(lasttempreadings[numsensors-2],3)){                           //set 1 message for each sensor
@@ -552,7 +551,7 @@ void loop() {
       }
     }
   }
-  if(datachange == false){
+  if(timechange == false){
     lasttempreadings[numsensors-1] = readtemperature(4,numsamples);              //create temperature array for all sensor
     if(listlogsensor[numsensors-1].enablelog(timmermillis)){   
       if(!setSDframe(lasttempreadings[numsensors-1],4)){                           //set 1 message for each sensor
@@ -600,8 +599,8 @@ void loop() {
   updatedsecondtimereference();
   t = Globaltime;
   sprintf(timebufferchange, "%02d",minute(t));
-  if((datachange == true)||(strcmp(timebufferchange,min) !=0)){
-    datachange = false;
+  if((timechange == true)||(strcmp(timebufferchange,min) !=0)){
+    timechange = false;
     memcpy(min,timebufferchange,sizeof(timebufferchange));
   /////eliminate files if it is requiered
 
