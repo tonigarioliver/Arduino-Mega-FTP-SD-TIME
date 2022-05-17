@@ -10,6 +10,8 @@
 #include <NTPClient.h>
 #include <Adafruit_MAX31865.h>
 #include <Log_Features.h>
+#include "Wire.h"
+#include "Adafruit_LiquidCrystal.h"
 //////////////////////////PT100 parameters
 #define RREF      430.0
 #define RNOMINAL  100.0
@@ -59,10 +61,6 @@ EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 unsigned long lcdTime = 0;
 const int lcdInterval = 1000; 
-
-////////////////////////////////////////////////
-#include "Wire.h"
-#include "Adafruit_LiquidCrystal.h"
 
 // Connect via i2c, default address #0 (A0-A2 not jumpered)
 Adafruit_LiquidCrystal lcd(0);
