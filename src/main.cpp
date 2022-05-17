@@ -118,7 +118,9 @@ String updatedsecondtimereference(){
   unsigned long nowmilis=millis();
   unsigned long elapsedtime=nowmilis-lastmillis;
   lastsecond = lastsecond +(float(elapsedtime)/1000);
+  Serial.println(lastsecond);
   String dif=getmilisecondsformat(lastsecond);
+  Serial.println(dif);
   if(lastsecond>1){
     Globaltime=Globaltime + int(lastsecond);
     lastsecond = lastsecond-int(lastsecond);
