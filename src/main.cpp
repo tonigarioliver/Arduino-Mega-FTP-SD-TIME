@@ -283,23 +283,43 @@ long ShowFreeSpace() {
   Serial.println(F(" KB"));
   return lFreeKB;
 }
+void setLCD(float sensor,int num){
+  String c ="IP: ";
+  IPAddress my = Ethernet.localIP();
+  char myip[16];
+  sprintf(myip, "%d.%d.%d.%d", my[0], my[1], my[2], my[3]);
+  c.concat(String(myip));
+  lcd.setCursor(0,0);
+  lcd.print(c);
+  unsigned long t = Globaltime;
+  char time[14];
+  sprintf(time, "%02d:%02d:%02d", hour(t), minute(t), second(t));
+  c = "Time: ";
+  c.concat(String(time));
+  lcd.setCursor(0,1);
+  lcd.print(c);
+  c ="Sensor ";
+  c.concat(num);
+  c.concat(": ");
+  c.concat(sensor);
+  lcd.setCursor(0,3);
+  lcd.print(c);
 
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 String setmessage(float sensor,int num){
   String c ="";
-  String c1 ="";
   String milisecondframe=updatedsecondtimereference();////////////////////
   unsigned long t = Globaltime;
   char time[29];
   sprintf(time, "%02d_%02d_%02d_%02d%02d%02d.", year(t), month(t), day(t), hour(t), minute(t), second(t));
   char timebuffer[5];
-  sprintf(timebuffer, "%02d",minute(t));
+  sprintf(timebuffer, "%02d",minute(t));////////////////change it
   if(strcmp(timebuffer,min) !=0){
     memcpy(min,timebuffer,sizeof(timebuffer));
     datachange = true;
   }else{
-    c1.concat("Temp: ");
-    c1.concat(sensor);
+    setLCD(sensor, num);
     c.concat(String(time));
     c.concat(milisecondframe);
     c.concat(";Sensor_");
@@ -307,8 +327,6 @@ String setmessage(float sensor,int num){
     c.concat("_mazzine;numbers;temperature;");
     c.concat(String(sensor));
     c.concat(";celsius");
-    //lcd.setCursor(0, (num-1));
-    //lcd.print(c1);
   }
   return c;
 
@@ -353,21 +371,41 @@ void deleteOldestFile(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-float readtemperature(int num){
+float readtemperature(int num,int numsamples){
   float temperature;
   switch (num){
     case 0:
       temperature = thermo0.temperature(RNOMINAL, RREF);
+      for(int i = 0; i< numsamples; i++){
+        temperature =temperature + (thermo0.temperature(RNOMINAL, RREF));
+      }
+      temperature = temperature/(numsamples+1);
       break;
+
     case 1:
       temperature =thermo1.temperature(RNOMINAL, RREF);
+      for(int i = 0; i< numsamples; i++){
+        temperature =temperature + (thermo1.temperature(RNOMINAL, RREF));
+      }
+      temperature = temperature/(numsamples+1);
       break;
+
     case 2:
       temperature = thermo2.temperature(RNOMINAL, RREF);
+      for(int i = 0; i< numsamples; i++){
+        temperature =temperature + (thermo2.temperature(RNOMINAL, RREF));
+      }
+      temperature = temperature/(numsamples+1);
       break;
+
     case 3:
       temperature = thermo3.temperature(RNOMINAL, RREF);
+      for(int i = 0; i< numsamples; i++){
+        temperature =temperature + (thermo3.temperature(RNOMINAL, RREF));
+      }
+      temperature = temperature/(numsamples+1);
       break;
+
     default:
       temperature = 0;
       break;
@@ -400,7 +438,13 @@ bool checkinternetStatus(){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool updatetimevalues(){
   bool udpatetimevalue = false;
-    unsigned long t = timeClient.getEpochTime();
+  unsigned long t;
+  if(reset == true){
+    t = timeClient.getEpochTime();
+  }else{
+    updatedsecondtimereference();
+    t = Globaltime;
+  }
     char buff[32];
     sprintf(dayDir,"%02d",day(t));
     sprintf(monthDir,"%02d",month(t));
@@ -476,13 +520,15 @@ void loop() {
     temperatureTime = currentTime;
     for(int i = 0; i<numsensors;i++){
       if(datachange == false){
-        float temp = readtemperature(i);              //create temperature array for all sensor
+        int numsamples = 20;
+        float temp = readtemperature(i,numsamples);              //create temperature array for all sensor
         if(!setSDframe(temp,i)){                           //set 1 message for each sensor
           Serial.println(F("Error writing at least 1 frame in SD File"));
         }
       }
     }
   }
+
  
   if(currentTime - timechange > temperatureInterval/4) {
     timechange = currentTime;
