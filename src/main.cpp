@@ -55,9 +55,6 @@ Log_Features listlogsensor[] = {
 };
 
 
-//////////////////LCD
-int numLCD = 1;
-
 ////Global varibale for time library
 EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
@@ -66,16 +63,26 @@ const int lcdInterval = 1000;
 
 // Connect via i2c, default address #0 (A0-A2 not jumpered)
 Adafruit_LiquidCrystal lcd(0);
+int numLCD = 1;
 
-////Other Global variables
-const int numsensors = 4;
+
+//////////////Timmer variables
 bool timechange = false; //timmer record for check time ftp
 char min[5]="00";
 char hours[5]="00";
-bool reset =  true;
 unsigned long long Globaltime=0;
 unsigned long long lastmillis=0;
 float lastsecond = 0;
+
+////Other Global variables
+const int numsensors = 4;
+bool reset =  true;
+int numsamples = 20;
+
+////////////////////Errors
+String ErrorTimeServer = "OK";
+String ErrorPT100Type[numsensors] = {"0","0","0","0"};
+String ErrorFTPSever = "OK";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool createSDfile(char*filename,String version){
@@ -130,9 +137,7 @@ String updatedsecondtimereference(){
   unsigned long nowmilis=millis();
   unsigned long elapsedtime=nowmilis-lastmillis;
   lastsecond = lastsecond +(float(elapsedtime)/1000);
-  Serial.println(lastsecond);
   String dif=getmilisecondsformat(lastsecond);
-  Serial.println(dif);
   if(lastsecond>1){
     Globaltime=Globaltime + int(lastsecond);
     lastsecond = lastsecond-int(lastsecond);
@@ -295,6 +300,7 @@ long ShowFreeSpace() {
   Serial.println(F(" KB"));
   return lFreeKB;
 }
+////////////////////////////////////////////////////////////////////////////////////////////
 void setLCD(float sensor,int num){
   String c ="IP: ";
   IPAddress my = Ethernet.localIP();
@@ -309,6 +315,16 @@ void setLCD(float sensor,int num){
   c = "Time: ";
   c.concat(String(time));
   lcd.setCursor(0,1);
+  lcd.print(c);
+  c = "Err: S";
+  c.concat(ErrorFTPSever);
+  c.concat("/C");
+  c.concat(ErrorTimeServer);
+  c.concat("/T");
+  c.concat(num);
+  c.concat(":");
+  c.concat(ErrorPT100Type[num-1]);
+  lcd.setCursor(0,2);
   lcd.print(c);
   c ="Sensor ";
   c.concat(num);
@@ -380,6 +396,36 @@ void deleteOldestFile(){
   oldestFile.remove();
   dirFile.close();
 }
+/////////////////////////////////////////////////////////////////
+uint8_t check_fault(Adafruit_MAX31865 temp_sensor, int16_t temperature) {
+  uint8_t error = 0; // Holds the error to be returned. Zero is no error.
+  uint8_t fault = temp_sensor.readFault(); // Query's the MAX31865 for a fault state.
+  if (fault) {
+    if (fault & MAX31865_FAULT_HIGHTHRESH) {
+      error = 3; //RTD High Threshold.
+    }
+    else if (fault & MAX31865_FAULT_LOWTHRESH) {
+      error = 4; //RTD Low Threshold.
+    }
+    else if (fault & MAX31865_FAULT_REFINLOW) {
+      error = 5; //REFIN- > 0.85 x Bias.
+    }
+    else if (fault & MAX31865_FAULT_REFINHIGH) {
+      error = 6; //REFIN- < 0.85 x Bias - FORCE- open.
+    }
+    else if (fault & MAX31865_FAULT_RTDINLOW) {
+      error = 7; //RTDIN- < 0.85 x Bias - FORCE- open.
+    }
+    else if (fault & MAX31865_FAULT_OVUV) {
+      error = 8; //Under/Over voltage.
+    }
+    temp_sensor.clearFault(); // Clears any MAX31865 faults.
+  }
+  else if (temperature < -200 || temperature > 850) { // Checks to see if there's an open loop.
+    error = 9; //Open loop.
+  }
+  return error; // Returns the error state from the function.
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float readtemperature(int num,int numsamples){
@@ -391,6 +437,7 @@ float readtemperature(int num,int numsamples){
         temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
+      ErrorPT100Type[num-1] = String(check_fault(listsensors[num-1],temperature));
       break;
 
     case 2:
@@ -399,6 +446,7 @@ float readtemperature(int num,int numsamples){
         temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
+      ErrorPT100Type[num-1] = String(check_fault(listsensors[num-1],temperature));
       break;
 
     case 3:
@@ -407,6 +455,7 @@ float readtemperature(int num,int numsamples){
         temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
+      ErrorPT100Type[num-1] = String(check_fault(listsensors[num-1],temperature));
       break;
 
     case 4:
@@ -415,6 +464,7 @@ float readtemperature(int num,int numsamples){
         temperature =temperature + (listsensors[num-1].temperature(RNOMINAL, RREF));
       }
       temperature = temperature/(numsamples+1);
+      ErrorPT100Type[num-1] = String(check_fault(listsensors[num-1],temperature));
       break;
 
     default:
@@ -445,15 +495,24 @@ bool checkinternetStatus(){
   }
   return succesinternetStatus;
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void equalinternalandservertimmer(){
+    Globaltime = timeClient.getEpochTime();
+    unsigned long delaybeforestart=millis();
+    lastmillis = delaybeforestart;
+    lastsecond =0;
+    updatedsecondtimereference();
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool updatetimevalues(){
   bool udpatetimevalue = false;
   unsigned long t;
+  unsigned long t1;
   if(reset == true){
     t = timeClient.getEpochTime();
   }else{
-    updatedsecondtimereference();
+    t1 = timeClient.getEpochTime();
+    equalinternalandservertimmer();
     t = Globaltime;
   }
     char buff[32];
@@ -462,6 +521,8 @@ bool updatetimevalues(){
     sprintf(yearDir,"%02d",year(t));
     sprintf(fileName,"Tempmanzine_%02d_%02d_%02d.log", hour(t), minute(t), second(t));
     sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(t), month(t), year(t), hour(t), minute(t), second(t));
+    Serial.println(buff);
+    sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(t1), month(t1), year(t1), hour(t1), minute(t1), second(t1));
     Serial.println(buff);
     udpatetimevalue = true;
   return udpatetimevalue;
@@ -524,7 +585,6 @@ void setup() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void loop() {
   timeClient.update();
-  int numsamples = 20;
   updatedsecondtimereference();
   unsigned long long timmermillis = lastmillis;  
   if(timechange == false){
@@ -594,9 +654,9 @@ void loop() {
   if(strcmp(timebufferchange,hours) !=0){
     memcpy(hours,timebufferchange,sizeof(timebufferchange));
     checkinternetStatus();
+    equalinternalandservertimmer();
   }
 
-  updatedsecondtimereference();
   t = Globaltime;
   sprintf(timebufferchange, "%02d",minute(t));
   if((timechange == true)||(strcmp(timebufferchange,min) !=0)){
