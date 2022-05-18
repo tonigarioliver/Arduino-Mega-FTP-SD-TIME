@@ -342,7 +342,7 @@ String setmessage(float sensor,int num){
   char time[29];
   sprintf(time, "%02d_%02d_%02d_%02d%02d%02d.", year(t), month(t), day(t), hour(t), minute(t), second(t));
   char timebuffer[5];
-  sprintf(timebuffer, "%02d",minute(t));////////////////change it
+  sprintf(timebuffer, "%02d",day(t));////////////////change it
   if(strcmp(timebuffer,min) !=0){
     memcpy(min,timebuffer,sizeof(timebuffer));
     timechange = true;
@@ -658,7 +658,7 @@ void loop() {
   }
 
   t = Globaltime;
-  sprintf(timebufferchange, "%02d",minute(t));
+  sprintf(timebufferchange, "%02d",day(t));
   if((timechange == true)||(strcmp(timebufferchange,min) !=0)){
     timechange = false;
     memcpy(min,timebufferchange,sizeof(timebufferchange));
