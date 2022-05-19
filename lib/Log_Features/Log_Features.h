@@ -1,16 +1,23 @@
 #include "Arduino.h"
 
-class Log_Features{
-    private:
-        int _deltatimelog;
-        unsigned long long _lastlog;
-    public:
-        Log_Features(int deltatimelog, unsigned long long lastlog);
+class Log_Features
+{
+private:
+    int _deltatimelog;
+    unsigned long long _lastlog;
+    int _percentatgelog;
+    float _lasttemplog;
 
-        void set_deltatimelog(int deltatimelog);
-        void set_lastlog(unsigned long long lastlog);
-        int get_deltatimelog();
-        unsigned long long get_lastlog();
-        bool enablelog(unsigned long long currentTime);
+public:
+    Log_Features(int deltatimelog, unsigned long long lastlog,int percentatgelog,float lasttemplog);
 
+    void set_deltatimelog(int deltatimelog);
+    void set_lastlog(unsigned long long lastlog);
+    void set_percentatgelog(int percentatgelog);
+    void set_lasttemplog(float lasttemplog);
+    float get_lasttemplog();
+    int get_percentatgelog();
+    int get_deltatimelog();
+    unsigned long long get_lastlog();
+    bool enablelog(unsigned long long currentTime);
 };

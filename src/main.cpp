@@ -21,7 +21,7 @@ Adafruit_MAX31865 listsensors[] = {
   Adafruit_MAX31865(4,6,7,8),
   Adafruit_MAX31865(5,6,7,8)
 };
-float lasttempreadings[4] ={};
+float lasttempreadings[4] ={0,0,0,0};
 
 ////////////////Ethernet MAC for DHCP
 uint8_t mac[] = { 0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79 };  
@@ -48,10 +48,10 @@ SdFat SD;
 const long minfreesize =  3831670; ///free memory size in kB
 ///LogObjects
 Log_Features listlogsensor[] = {
-  Log_Features(2000,0),
-  Log_Features(1000,0),
-  Log_Features(2000,0),
-  Log_Features(1000,0),
+  Log_Features(1000,0,0,0),
+  Log_Features(1000,0,0,0),
+  Log_Features(1000,0,0,0),
+  Log_Features(1000,0,0,0),
 };
 
 
@@ -59,11 +59,13 @@ Log_Features listlogsensor[] = {
 EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 unsigned long lcdTime = 0;
-const int lcdInterval = 1000; 
+const int lcdInterval = 500; 
+unsigned long lcdTimetemp = 0;
+const int lcdIntervaltemp = 1000; 
 
 // Connect via i2c, default address #0 (A0-A2 not jumpered)
 Adafruit_LiquidCrystal lcd(0);
-int numLCD = 1;
+int numLCD = 0;                 
 
 
 //////////////Timmer variables
@@ -78,11 +80,12 @@ float lastsecond = 0;
 const int numsensors = 4;
 bool reset =  true;
 int numsamples = 20;
+String logicnamesensor[] ={"Sensor_1", "Sensor_2", "Sensor_3","Sensor_4"};
 
 ////////////////////Errors
 String ErrorTimeServer = "OK";
 String ErrorPT100Type[numsensors] = {"0","0","0","0"};
-String ErrorFTPSever = "OK";
+String ErrorFTPServer = "OK";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool createSDfile(char*filename,String version){
@@ -301,7 +304,8 @@ long ShowFreeSpace() {
   return lFreeKB;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////
-void setLCD(float sensor,int num){
+void setLCDtime(){
+  updatedsecondtimereference();
   String c ="IP: ";
   IPAddress my = Ethernet.localIP();
   char myip[16];
@@ -316,22 +320,47 @@ void setLCD(float sensor,int num){
   c.concat(String(time));
   lcd.setCursor(0,1);
   lcd.print(c);
-  c = "Err: S";
-  c.concat(ErrorFTPSever);
-  c.concat("/C");
-  c.concat(ErrorTimeServer);
-  c.concat("/T");
-  c.concat(num);
-  c.concat(":");
-  c.concat(ErrorPT100Type[num-1]);
-  lcd.setCursor(0,2);
-  lcd.print(c);
-  c ="Sensor ";
-  c.concat(num);
-  c.concat(": ");
-  c.concat(sensor);
-  lcd.setCursor(0,3);
-  lcd.print(c);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void setLCDtemp(float sensor,int num){
+  String c;
+  int len = 0;
+  if(num == 0){
+    c = "ErrorServerFTP: ";
+    c.concat(ErrorFTPServer);
+    len = c.length();
+    for(int i = len;i<20;i++){
+      c.concat(" "); 
+    }
+    lcd.setCursor(0,2);
+    lcd.print(c);
+    c = "ErrorServerTIME: ";
+    c.concat(ErrorTimeServer);
+    len = c.length();
+    for(int i = len;i<20;i++){
+      c.concat(" "); 
+    }
+    lcd.setCursor(0,3);
+    lcd.print(c);
+  }else{
+    c =logicnamesensor[num-1];
+    len = c.length();
+    for(int i = len;i<20;i++){
+      c.concat(" "); 
+    }
+    lcd.setCursor(0,2);
+    lcd.print(c);
+    c="T:";
+    c.concat(sensor);
+    c.concat(" E:");
+    c.concat(ErrorPT100Type[num-1]);
+    len = c.length();
+    for(int i = len;i<20;i++){
+      c.concat(" "); 
+    }
+    lcd.setCursor(0,3);
+    lcd.print(c);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -342,16 +371,16 @@ String setmessage(float sensor,int num){
   char time[29];
   sprintf(time, "%02d_%02d_%02d_%02d%02d%02d.", year(t), month(t), day(t), hour(t), minute(t), second(t));
   char timebuffer[5];
-  sprintf(timebuffer, "%02d",day(t));////////////////change it
+  sprintf(timebuffer, "%02d",minute(t));////////////////change it
   if(strcmp(timebuffer,min) !=0){
     memcpy(min,timebuffer,sizeof(timebuffer));
     timechange = true;
   }else{
     c.concat(String(time));
     c.concat(milisecondframe);
-    c.concat(";Sensor_");
-    c.concat(String(num));
-    c.concat("_mazzine;numbers;temperature;");
+    c.concat(";");
+    c.concat(logicnamesensor[num-1]);
+    c.concat(";numbers;temperature;");
     c.concat(String(sensor));
     c.concat(";celsius");
   }
@@ -595,53 +624,64 @@ void loop() {
       }
     }
   }
+  updatedsecondtimereference();
   if(timechange == false){
     lasttempreadings[numsensors-3] = readtemperature(2,numsamples);              //create temperature array for all sensor
-    if(listlogsensor[numsensors-3].enablelog(timmermillis)){  
+    if(listlogsensor[numsensors-3].enablelog(lastmillis)){  
       if(!setSDframe(lasttempreadings[numsensors-3],2)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
+  updatedsecondtimereference(); 
   if(timechange == false){
     lasttempreadings[numsensors-2] = readtemperature(3,numsamples);              //create temperature array for all sensor
-    if(listlogsensor[numsensors-2].enablelog(timmermillis)){
+    if(listlogsensor[numsensors-2].enablelog(lastmillis)){
       if(!setSDframe(lasttempreadings[numsensors-2],3)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
+  updatedsecondtimereference();
   if(timechange == false){
     lasttempreadings[numsensors-1] = readtemperature(4,numsamples);              //create temperature array for all sensor
-    if(listlogsensor[numsensors-1].enablelog(timmermillis)){   
+    if(listlogsensor[numsensors-1].enablelog(lastmillis)){   
       if(!setSDframe(lasttempreadings[numsensors-1],4)){                           //set 1 message for each sensor
         Serial.println(F("Error writing at least 1 frame in SD File"));
       }
     }
   }
-  
   unsigned long currentTime = millis();
   if(currentTime - lcdTime > lcdInterval) {
     lcdTime = currentTime;
+    setLCDtime();
+  }
+
+  if(currentTime - lcdTimetemp > lcdIntervaltemp) {
+    lcdTimetemp = currentTime;
     switch(numLCD){
+      case 0:
+        setLCDtemp(0,numLCD);
+        numLCD++;
+        break;
       case 1:
-        setLCD(lasttempreadings[numsensors-4],numLCD);
+        setLCDtemp(lasttempreadings[numsensors-4],numLCD);
         numLCD++;
         break;
 
       case 2:
-        setLCD(lasttempreadings[numsensors-3],numLCD);
+        setLCDtemp(lasttempreadings[numsensors-3],numLCD);
         numLCD++;
         break;
 
       case 3:
-        setLCD(lasttempreadings[numsensors-2],numLCD);
+        setLCDtemp(lasttempreadings[numsensors-2],numLCD);
         numLCD++;
         break;
 
       case 4:
-        setLCD(lasttempreadings[numsensors-1],numLCD);
-        numLCD = 1;
+        setLCDtemp(lasttempreadings[numsensors-1],numLCD);
+        numLCD = 0;
         break;
     }
   }
@@ -658,7 +698,7 @@ void loop() {
   }
 
   t = Globaltime;
-  sprintf(timebufferchange, "%02d",day(t));
+  sprintf(timebufferchange, "%02d",minute(t));
   if((timechange == true)||(strcmp(timebufferchange,min) !=0)){
     timechange = false;
     memcpy(min,timebufferchange,sizeof(timebufferchange));
