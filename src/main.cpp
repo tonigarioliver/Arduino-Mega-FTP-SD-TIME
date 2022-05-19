@@ -46,10 +46,10 @@ SdFat SD;
 const long minfreesize = 3831670; /// free memory size in kB
 /// LogObjects
 Log_Features listlogsensor[] = {
-    Log_Features(1000, 0, 0, 0),
-    Log_Features(1000, 0, 0, 0),
-    Log_Features(1000, 0, 0, 0),
-    Log_Features(1000, 0, 0, 0),
+    Log_Features(1, 0, 0, 0),
+    Log_Features(1, 0, 0, 0),
+    Log_Features(1, 0, 0, 0),
+    Log_Features(1, 0, 0, 0),
 };
 
 ////Global varibale for time library
@@ -778,16 +778,16 @@ char *checkdata(char *data)
 ///////////////////////////////////////////////////////////////////////////////
 void executeCMD(char *cmd, char *data)
 {
-  String name =data;
+  String name = data;
   if (strcmp(cmd, "logicname") == 0)
   {
-    
-    int i = (name.substring(0,1)).toInt();
-    if((i>=0)&&(i<numsensors-1)){
+
+    int i = (name.substring(0, 1)).toInt();
+    if ((i >= 0) && (i < numsensors))
+    {
       name = name.substring(1);
       logicnamesensor[i] = name;
     }
- 
   }
   if (strcmp(cmd, "log%") == 0)
   {
@@ -795,8 +795,9 @@ void executeCMD(char *cmd, char *data)
   }
   if (strcmp(cmd, "logtime") == 0)
   {
-    int i = (name.substring(0,1)).toInt();
-    if((i>=0)&&(i<numsensors-1)){
+    int i = (name.substring(0, 1)).toInt();
+    if ((i >= 0) && (i < numsensors))
+    {
       int tlog = (name.substring(1)).toInt();
       listlogsensor[i].set_deltatimelog(tlog);
     }

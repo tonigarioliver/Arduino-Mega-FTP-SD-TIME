@@ -3,13 +3,13 @@
 class Log_Features
 {
 private:
-    int _deltatimelog;
+    unsigned long _deltatimelog; //// miliseconds
     unsigned long long _lastlog;
     int _percentatgelog;
     float _lasttemplog;
 
 public:
-    Log_Features(int deltatimelog, unsigned long long lastlog,int percentatgelog,float lasttemplog);
+    Log_Features(int deltatimelog, unsigned long long lastlog, int percentatgelog, float lasttemplog); //// pass seconds
 
     void set_deltatimelog(int deltatimelog);
     void set_lastlog(unsigned long long lastlog);

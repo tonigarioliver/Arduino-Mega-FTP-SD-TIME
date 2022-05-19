@@ -5,7 +5,7 @@
 
 Log_Features::Log_Features(int deltatimelog, unsigned long long lastlog, int percentatgelog, float lasttemplog)
 {
-    _deltatimelog = deltatimelog;
+    _deltatimelog = (deltatimelog * 1000);
     _lastlog = lastlog;
     _lasttemplog = lasttemplog;
     _percentatgelog = percentatgelog;
@@ -13,7 +13,7 @@ Log_Features::Log_Features(int deltatimelog, unsigned long long lastlog, int per
 
 void Log_Features::set_deltatimelog(int deltatimelog)
 {
-    _deltatimelog = deltatimelog;
+    _deltatimelog = long(deltatimelog) * 1000;
 };
 
 void Log_Features::set_lastlog(unsigned long long lastlog)
@@ -27,8 +27,8 @@ unsigned long long Log_Features::get_lastlog()
 };
 
 int Log_Features::get_deltatimelog()
-{
-    return _deltatimelog;
+{   
+    return int((_deltatimelog / 1000));
 };
 
 void Log_Features::set_percentatgelog(int percentatgelog)
