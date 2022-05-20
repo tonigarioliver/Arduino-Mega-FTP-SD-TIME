@@ -1,8 +1,5 @@
 #include <Arduino.h>
-
-// FTP library example
-// by Industrial Shields
-
+#include <EEPROM.h>
 #include <FTP.h>
 #include <SdFat.h>
 #include <Ethernet.h>
@@ -12,9 +9,8 @@
 #include <Log_Features.h>
 #include "Wire.h"
 #include "Adafruit_LiquidCrystal.h"
+#include "Define.h"
 //////////////////////////PT100 parameters
-#define RREF 430.0
-#define RNOMINAL 100.0
 Adafruit_MAX31865 listsensors[] = {
     Adafruit_MAX31865(2, 6, 7, 8),
     Adafruit_MAX31865(3, 6, 7, 8),
@@ -56,9 +52,7 @@ Log_Features listlogsensor[] = {
 EthernetUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 unsigned long lcdTime = 0;
-const int lcdInterval = 500;
 unsigned long lcdTimetemp = 0;
-const int lcdIntervaltemp = 1000;
 
 // Connect via i2c, default address #0 (A0-A2 not jumpered)
 Adafruit_LiquidCrystal lcd(0);
@@ -73,7 +67,6 @@ unsigned long long lastmillis = 0;
 float lastsecond = 0;
 
 ////Other Global variables
-const int numsensors = 4;
 bool reset = true;
 int numsamples = 20;
 String logicnamesensor[] = {"Sensor_1", "Sensor_2", "Sensor_3", "Sensor_4"};
@@ -753,6 +746,7 @@ char *checkcomand(char *cmd)
     }
     cmd[i] = tempChars[i];
   }
+  return cmd;
 }
 
 char *checkdata(char *data)
@@ -775,11 +769,45 @@ char *checkdata(char *data)
   }
   return data;
 }
+////////////////////////////////////////////////////////////////////////////////
+void writeStringToEEPROM(int addrOffset, const String &strToWrite)
+{
+  byte len = strToWrite.length();
+  EEPROM.write(addrOffset, len);
+  for (int i = 0; i < len; i++)
+  {
+    EEPROM.write(addrOffset + 1 + i, strToWrite[i]);
+  }
+}
+///////////////////////////////////////////////////////////////////////////////////////
+String readStringFromEEPROM(int addrOffset)
+{
+  int newStrLen = EEPROM.read(addrOffset);
+  char data[newStrLen + 1];
+  for (int i = 0; i < newStrLen; i++)
+  {
+    data[i] = EEPROM.read(addrOffset + 1 + i);
+  }
+  data[newStrLen] = '\0'; // !!! NOTE !!! Remove the space between the slash "/" and "0" (I've added a space because otherwise there is a display bug)
+  return String(data);
+}
+
+////////////////////////////////////////////////////////////////////
+void writeIntIntoEEPROM(int address, int number)
+{
+  EEPROM.write(address, number >> 8);
+  EEPROM.write(address + 1, number & 0xFF);
+}
+////////////////////////////////////////////////////////////////////////////
+int readIntFromEEPROM(int address)
+{
+  return (EEPROM.read(address) << 8) + EEPROM.read(address + 1);
+}
 ///////////////////////////////////////////////////////////////////////////////
 void executeCMD(char *cmd, char *data)
 {
   String name = data;
-  if (strcmp(cmd, "logicname") == 0)
+  if (strcmp(cmd, "name") == 0)
   {
 
     int i = (name.substring(0, 1)).toInt();
@@ -787,11 +815,18 @@ void executeCMD(char *cmd, char *data)
     {
       name = name.substring(1);
       logicnamesensor[i] = name;
+      writeStringToEEPROM(EEPROMSTRINGLENGTH*i, name);
     }
   }
   if (strcmp(cmd, "log%") == 0)
   {
-    Serial.println("logpercentatge");
+    int i = (name.substring(0, 1)).toInt();
+    if ((i >= 0) && (i < numsensors))
+    {
+      int plog = (name.substring(1)).toInt();
+      listlogsensor[i].set_percentatgelog(plog);
+      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)+(numsensors*EEPROMINTLENGTH)), plog);
+    }
   }
   if (strcmp(cmd, "logtime") == 0)
   {
@@ -800,10 +835,12 @@ void executeCMD(char *cmd, char *data)
     {
       int tlog = (name.substring(1)).toInt();
       listlogsensor[i].set_deltatimelog(tlog);
+      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)), tlog);
     }
   }
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void setup()
 {
   Serial.begin(9600);
@@ -821,7 +858,11 @@ void setup()
   {
     deleteOldestFile();
   }
-
+  for(int i = 0;i<numsensors;i++){
+    logicnamesensor[i] = readStringFromEEPROM(EEPROMSTRINGLENGTH*i);
+    listlogsensor[i].set_deltatimelog(readIntFromEEPROM((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)));
+    listlogsensor[i].set_percentatgelog(readIntFromEEPROM((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)+(numsensors*EEPROMINTLENGTH)));
+  }
   while (Ethernet.begin(mac) == 0)
   {
     Serial.println(F("Failed to configure Ethernet using DHCP"));
