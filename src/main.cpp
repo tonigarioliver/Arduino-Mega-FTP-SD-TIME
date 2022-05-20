@@ -13,10 +13,11 @@
 #include <pt100rtd.h> // Library with a PT100 look up table.
 //////////////////////////PT100 parameters
 Adafruit_MAX31865 listsensors[] = {
-    Adafruit_MAX31865(2, 6, 7, 8),
-    Adafruit_MAX31865(3, 6, 7, 8),
-    Adafruit_MAX31865(4, 6, 7, 8),
-    Adafruit_MAX31865(5, 6, 7, 8)};
+  Adafruit_MAX31865(pt100_1, COPI, CIPO, CLK),
+  Adafruit_MAX31865(pt100_2, COPI, CIPO, CLK),
+  Adafruit_MAX31865(pt100_3, COPI, CIPO, CLK),
+  Adafruit_MAX31865(pt100_4, COPI, CIPO, CLK)
+  };
 pt100rtd PT100 = pt100rtd(); // Initializing the PT100 look up library.
 float lasttempreadings[4] = {0, 0, 0, 0};
 
