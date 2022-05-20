@@ -2,7 +2,7 @@
 #define RNOMINAL 100.0
 #define numsensors 4
 #define lcdIntervaltemp 1000
-#define lcdInterval 500
+#define lcdInterval 250
 #define EEPROMSTRINGLENGTH 20
 #define EEPROMINTLENGTH 2
 #define CIPO 7    // SPI - Controller in peripheral out.

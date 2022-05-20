@@ -27,7 +27,7 @@ unsigned long long Log_Features::get_lastlog()
 };
 
 int Log_Features::get_deltatimelog()
-{   
+{
     return int((_deltatimelog / 1000));
 };
 
@@ -50,12 +50,29 @@ int Log_Features::get_percentatgelog()
     return _percentatgelog;
 }
 
-bool Log_Features::enablelog(unsigned long long currentTime)
+bool Log_Features::enablelog(unsigned long long currentTime, float currentTemperature)
 {
     if ((currentTime - _lastlog) >= _deltatimelog)
     {
         _lastlog = currentTime;
+        _lasttemplog = currentTemperature;
         return true;
     }
+    if(currentTemperature>=0){
+        if ((currentTemperature < (_lasttemplog *(1-(float(_percentatgelog) / 100)))) || (currentTemperature > (_lasttemplog *(1+(float(_percentatgelog) / 100)))))
+        {
+            _lastlog = currentTime;
+            _lasttemplog = currentTemperature;
+            return true;
+        }
+    }else{
+        if ((currentTemperature > (_lasttemplog *(1-(float(_percentatgelog) / 100)))) || (currentTemperature < (_lasttemplog *(1+(float(_percentatgelog) / 100)))))
+        {
+            _lastlog = currentTime;
+            _lasttemplog = currentTemperature;
+            return true;
+        }
+    }
+
     return false;
 }

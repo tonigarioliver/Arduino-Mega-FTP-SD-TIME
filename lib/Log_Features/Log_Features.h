@@ -19,5 +19,5 @@ public:
     int get_percentatgelog();
     int get_deltatimelog();
     unsigned long long get_lastlog();
-    bool enablelog(unsigned long long currentTime);
+    bool enablelog(unsigned long long currentTime, float currentTemperature);
 };

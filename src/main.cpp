@@ -877,8 +877,13 @@ void setup()
   for (int i = 0; i < numsensors; i++)
   {
     logicnamesensor[i] = readStringFromEEPROM(EEPROMSTRINGLENGTH * i);
-    listlogsensor[i].set_deltatimelog(readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i)));
-    listlogsensor[i].set_percentatgelog(readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH)));
+    Serial.println(logicnamesensor[i]);
+    int tlog =readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i));
+    listlogsensor[i].set_deltatimelog(tlog);
+    Serial.println(tlog);
+    int plog =readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH));
+    listlogsensor[i].set_percentatgelog(plog);
+    Serial.println(plog);
   }
   while (Ethernet.begin(mac) == 0)
   {
@@ -944,7 +949,7 @@ void loop()
   if (timechange == false)
   {
     lasttempreadings[numsensors - 4] = readtemperature(1, numsamples);
-    if (listlogsensor[numsensors - 4].enablelog(timmermillis))
+    if (listlogsensor[numsensors - 4].enablelog(timmermillis, lasttempreadings[numsensors - 4]))
     { // create temperature array for all sensor
       if (!setSDframe(lasttempreadings[numsensors - 4], 1))
       { // set 1 message for each sensor
@@ -956,7 +961,7 @@ void loop()
   if (timechange == false)
   {
     lasttempreadings[numsensors - 3] = readtemperature(2, numsamples); // create temperature array for all sensor
-    if (listlogsensor[numsensors - 3].enablelog(lastmillis))
+    if (listlogsensor[numsensors - 3].enablelog(lastmillis, lasttempreadings[numsensors - 3]))
     {
       if (!setSDframe(lasttempreadings[numsensors - 3], 2))
       { // set 1 message for each sensor
@@ -968,7 +973,7 @@ void loop()
   if (timechange == false)
   {
     lasttempreadings[numsensors - 2] = readtemperature(3, numsamples); // create temperature array for all sensor
-    if (listlogsensor[numsensors - 2].enablelog(lastmillis))
+    if (listlogsensor[numsensors - 2].enablelog(lastmillis, lasttempreadings[numsensors - 2]))
     {
       if (!setSDframe(lasttempreadings[numsensors - 2], 3))
       { // set 1 message for each sensor
@@ -980,7 +985,7 @@ void loop()
   if (timechange == false)
   {
     lasttempreadings[numsensors - 1] = readtemperature(4, numsamples); // create temperature array for all sensor
-    if (listlogsensor[numsensors - 1].enablelog(lastmillis))
+    if (listlogsensor[numsensors - 1].enablelog(lastmillis, lasttempreadings[numsensors - 1]))
     {
       if (!setSDframe(lasttempreadings[numsensors - 1], 4))
       { // set 1 message for each sensor
