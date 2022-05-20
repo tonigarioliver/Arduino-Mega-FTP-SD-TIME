@@ -10,12 +10,14 @@
 #include "Wire.h"
 #include "Adafruit_LiquidCrystal.h"
 #include "Define.h"
+#include <pt100rtd.h> // Library with a PT100 look up table.
 //////////////////////////PT100 parameters
 Adafruit_MAX31865 listsensors[] = {
     Adafruit_MAX31865(2, 6, 7, 8),
     Adafruit_MAX31865(3, 6, 7, 8),
     Adafruit_MAX31865(4, 6, 7, 8),
     Adafruit_MAX31865(5, 6, 7, 8)};
+pt100rtd PT100 = pt100rtd(); // Initializing the PT100 look up library.
 float lasttempreadings[4] = {0, 0, 0, 0};
 
 ////////////////Ethernet MAC for DHCP
@@ -572,7 +574,19 @@ uint8_t check_fault(Adafruit_MAX31865 temp_sensor, int16_t temperature)
   }
   return error; // Returns the error state from the function.
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////
+float read_sensor (Adafruit_MAX31865 sensor) {
+  uint16_t rtd, ohmsx100;
+  uint32_t dummy;
 
+  rtd = sensor.readRTD();
+
+  dummy = ((uint32_t)(rtd << 1)) * 100 * ((uint32_t) floor(RREF)) ;
+  dummy >>= 16 ;
+  ohmsx100 = (uint16_t) (dummy & 0xFFFF);
+
+  return PT100.celsius(ohmsx100);
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 float readtemperature(int num, int numsamples)
 {
@@ -583,7 +597,7 @@ float readtemperature(int num, int numsamples)
     temperature = listsensors[num - 1].temperature(RNOMINAL, RREF);
     for (int i = 0; i < numsamples; i++)
     {
-      temperature = temperature + (listsensors[num - 1].temperature(RNOMINAL, RREF));
+      temperature = temperature + (read_sensor(listsensors[num - 1]));
     }
     temperature = temperature / (numsamples + 1);
     ErrorPT100Type[num - 1] = String(check_fault(listsensors[num - 1], temperature));
@@ -593,7 +607,7 @@ float readtemperature(int num, int numsamples)
     temperature = listsensors[num - 1].temperature(RNOMINAL, RREF);
     for (int i = 0; i < numsamples; i++)
     {
-      temperature = temperature + (listsensors[num - 1].temperature(RNOMINAL, RREF));
+      temperature = temperature + (read_sensor(listsensors[num - 1]));
     }
     temperature = temperature / (numsamples + 1);
     ErrorPT100Type[num - 1] = String(check_fault(listsensors[num - 1], temperature));
@@ -603,7 +617,7 @@ float readtemperature(int num, int numsamples)
     temperature = listsensors[num - 1].temperature(RNOMINAL, RREF);
     for (int i = 0; i < numsamples; i++)
     {
-      temperature = temperature + (listsensors[num - 1].temperature(RNOMINAL, RREF));
+      temperature = temperature + (read_sensor(listsensors[num - 1]));
     }
     temperature = temperature / (numsamples + 1);
     ErrorPT100Type[num - 1] = String(check_fault(listsensors[num - 1], temperature));
@@ -613,7 +627,7 @@ float readtemperature(int num, int numsamples)
     temperature = listsensors[num - 1].temperature(RNOMINAL, RREF);
     for (int i = 0; i < numsamples; i++)
     {
-      temperature = temperature + (listsensors[num - 1].temperature(RNOMINAL, RREF));
+      temperature = temperature + (read_sensor(listsensors[num - 1]));
     }
     temperature = temperature / (numsamples + 1);
     ErrorPT100Type[num - 1] = String(check_fault(listsensors[num - 1], temperature));
