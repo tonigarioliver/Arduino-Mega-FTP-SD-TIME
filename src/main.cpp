@@ -9,15 +9,15 @@
 #include <Log_Features.h>
 #include "Wire.h"
 #include "Adafruit_LiquidCrystal.h"
-#include "Define.h"
+#include "define.h"
 #include <pt100rtd.h> // Library with a PT100 look up table.
+
 //////////////////////////PT100 parameters
 Adafruit_MAX31865 listsensors[] = {
-  Adafruit_MAX31865(pt100_1, COPI, CIPO, CLK),
-  Adafruit_MAX31865(pt100_2, COPI, CIPO, CLK),
-  Adafruit_MAX31865(pt100_3, COPI, CIPO, CLK),
-  Adafruit_MAX31865(pt100_4, COPI, CIPO, CLK)
-  };
+    Adafruit_MAX31865(pt100_1, COPI, CIPO, CLK),
+    Adafruit_MAX31865(pt100_2, COPI, CIPO, CLK),
+    Adafruit_MAX31865(pt100_3, COPI, CIPO, CLK),
+    Adafruit_MAX31865(pt100_4, COPI, CIPO, CLK)};
 pt100rtd PT100 = pt100rtd(); // Initializing the PT100 look up library.
 float lasttempreadings[4] = {0, 0, 0, 0};
 
@@ -576,15 +576,16 @@ uint8_t check_fault(Adafruit_MAX31865 temp_sensor, int16_t temperature)
   return error; // Returns the error state from the function.
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-float read_sensor (Adafruit_MAX31865 sensor) {
+float read_sensor(Adafruit_MAX31865 sensor)
+{
   uint16_t rtd, ohmsx100;
   uint32_t dummy;
 
   rtd = sensor.readRTD();
 
-  dummy = ((uint32_t)(rtd << 1)) * 100 * ((uint32_t) floor(RREF)) ;
-  dummy >>= 16 ;
-  ohmsx100 = (uint16_t) (dummy & 0xFFFF);
+  dummy = ((uint32_t)(rtd << 1)) * 100 * ((uint32_t)floor(RREF));
+  dummy >>= 16;
+  ohmsx100 = (uint16_t)(dummy & 0xFFFF);
 
   return PT100.celsius(ohmsx100);
 }
@@ -830,7 +831,7 @@ void executeCMD(char *cmd, char *data)
     {
       name = name.substring(1);
       logicnamesensor[i] = name;
-      writeStringToEEPROM(EEPROMSTRINGLENGTH*i, name);
+      writeStringToEEPROM(EEPROMSTRINGLENGTH * i, name);
     }
   }
   if (strcmp(cmd, "log%") == 0)
@@ -840,7 +841,7 @@ void executeCMD(char *cmd, char *data)
     {
       int plog = (name.substring(1)).toInt();
       listlogsensor[i].set_percentatgelog(plog);
-      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)+(numsensors*EEPROMINTLENGTH)), plog);
+      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH)), plog);
     }
   }
   if (strcmp(cmd, "logtime") == 0)
@@ -850,7 +851,7 @@ void executeCMD(char *cmd, char *data)
     {
       int tlog = (name.substring(1)).toInt();
       listlogsensor[i].set_deltatimelog(tlog);
-      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)), tlog);
+      writeIntIntoEEPROM(((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i)), tlog);
     }
   }
 }
@@ -873,10 +874,11 @@ void setup()
   {
     deleteOldestFile();
   }
-  for(int i = 0;i<numsensors;i++){
-    logicnamesensor[i] = readStringFromEEPROM(EEPROMSTRINGLENGTH*i);
-    listlogsensor[i].set_deltatimelog(readIntFromEEPROM((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)));
-    listlogsensor[i].set_percentatgelog(readIntFromEEPROM((EEPROMSTRINGLENGTH*numsensors)+(EEPROMINTLENGTH*i)+(numsensors*EEPROMINTLENGTH)));
+  for (int i = 0; i < numsensors; i++)
+  {
+    logicnamesensor[i] = readStringFromEEPROM(EEPROMSTRINGLENGTH * i);
+    listlogsensor[i].set_deltatimelog(readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i)));
+    listlogsensor[i].set_percentatgelog(readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH)));
   }
   while (Ethernet.begin(mac) == 0)
   {
