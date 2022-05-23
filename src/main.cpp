@@ -86,6 +86,8 @@ char receivedChars[numChars];
 char tempChars[numChars]; // temporary array for use when parsing
 boolean newData = false;
 IPAddress ip(192, 168, 1, 181);
+String remotetable ="";
+bool uploadcommand = false;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool createSDfile(char *filename, String version)
@@ -703,10 +705,10 @@ bool updatetimevalues()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-void showParsedData()
+void showParsedData(String c)
 {
   EthernetClient client = server.available();
-  client.print("\n MESSAGE RECECIVED \n\r");
+  client.print(c);
 }
 
 ////////////////////////////////////////////
@@ -723,7 +725,6 @@ void recvWithStartEndMarkers()
   {
     rc = client.read();
     Serial.print(rc);
-
     if (recvInProgress == true)
     {
       if (rc != endMarker)
@@ -756,7 +757,7 @@ char *checkcomand(char *cmd)
 
   for (int i = 0; i < numChars; i++)
   {
-    if (tempChars[i] == '/')
+    if (tempChars[i] == ',')
     {
       break;
     }
@@ -770,7 +771,7 @@ char *checkdata(char *data)
 
   bool startdata = false;
   int j = 0;
-  char startcomand = '/';
+  char startcomand = ',';
   for (int i = 0; i < numChars; i++)
   {
     if (startdata == true)
@@ -823,23 +824,27 @@ int readIntFromEEPROM(int address)
 void executeCMD(char *cmd, char *data)
 {
   String name = data;
+  if (strcmp(cmd, "upload") == 0)
+  {
+    uploadcommand = true;
+  }
   if (strcmp(cmd, "name") == 0)
   {
 
     int i = (name.substring(0, 1)).toInt();
     if ((i >= 0) && (i < numsensors))
     {
-      name = name.substring(1);
+      name = name.substring(2);
       logicnamesensor[i] = name;
       writeStringToEEPROM(EEPROMSTRINGLENGTH * i, name);
     }
   }
-  if (strcmp(cmd, "log%") == 0)
+  if (strcmp(cmd, "%log") == 0)
   {
     int i = (name.substring(0, 1)).toInt();
     if ((i >= 0) && (i < numsensors))
     {
-      int plog = (name.substring(1)).toInt();
+      int plog = (name.substring(2)).toInt();
       listlogsensor[i].set_percentatgelog(plog);
       writeIntIntoEEPROM(((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH)), plog);
     }
@@ -849,7 +854,7 @@ void executeCMD(char *cmd, char *data)
     int i = (name.substring(0, 1)).toInt();
     if ((i >= 0) && (i < numsensors))
     {
-      int tlog = (name.substring(1)).toInt();
+      int tlog = (name.substring(2)).toInt();
       listlogsensor[i].set_deltatimelog(tlog);
       writeIntIntoEEPROM(((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i)), tlog);
     }
@@ -940,7 +945,18 @@ void loop()
     executeCMD(cmd, data);
     // this temporary copy is necessary to protect the original data
     //   because strtok() used in parseData() replaces the commas with \0
-    showParsedData();
+    remotetable = "\n MESSAGE RECECIVED \n\r";
+    remotetable = remotetable +"\n LOG Features \n\r";
+    for (int i = 0;i<numsensors; i++){
+      remotetable = remotetable+i+" name: "+logicnamesensor[i] + ", logtime: " + String(listlogsensor[i].get_deltatimelog())+ "s, %log: "+String(listlogsensor[i].get_percentatgelog());
+      remotetable = remotetable + "\n\r";
+    }
+    updatedsecondtimereference(); ////////////////////
+    unsigned long t = Globaltime;
+    char time[31];
+    sprintf(time, "%02d:_%02d_%02d_%02d:%02d:%02d", year(t), month(t), day(t), hour(t), minute(t), second(t));
+    remotetable = remotetable + time+ "\n\r";
+    showParsedData(remotetable);
     newData = false;
   }
   timeClient.update();
@@ -1031,6 +1047,26 @@ void loop()
     }
   }
 
+  if(uploadcommand == true){
+    uploadcommand = false;
+    while (!ftp.connect(FTPserver, user, pass))
+      {
+        Serial.println(F("Error connecting to FTP server"));
+        delayfunction(10);
+      }
+  // Restart directory from server
+      restartDirectory();
+      ftp.stop();
+      while (!ftp.connect(FTPserver, user, pass))
+      {
+        Serial.println(F("Error connecting to FTP server"));
+        delayfunction(100);
+      }
+      updateDirectory();
+      File fh = SD.open(fileName, FILE_READ);
+      ftp.store(fileName, fh);
+      ftp.stop();
+  }
   updatedsecondtimereference();
   unsigned long t = Globaltime;
   char timebufferchange[5];
@@ -1042,7 +1078,7 @@ void loop()
     checkinternetStatus();
     equalinternalandservertimmer();
   }
-
+  
   t = Globaltime;
   sprintf(timebufferchange, "%02d", day(t));
   if ((timechange == true) || (strcmp(timebufferchange, min) != 0))
