@@ -27,8 +27,8 @@ uint8_t mac[] = {0xA8, 0x61, 0x0A, 0xAE, 0x7B, 0x79};
 ////Global variables for Server
 IPAddress FTPserver(192, 168, 0, 193);
 
-const char *user = "arduino";
-const char *pass = "12345";
+const char *user = "ftpuser";
+const char *pass = "ftpuser1234$";
 char fileName[31] = "";
 char mainDir[20] = "Temperature";
 char yearDir[6] = "2022";
@@ -86,7 +86,7 @@ char receivedChars[numChars];
 char tempChars[numChars]; // temporary array for use when parsing
 boolean newData = false;
 IPAddress ip(192, 168, 1, 181);
-String remotetable ="";
+String remotetable = "";
 bool uploadcommand = false;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,10 +883,10 @@ void setup()
   {
     logicnamesensor[i] = readStringFromEEPROM(EEPROMSTRINGLENGTH * i);
     Serial.println(logicnamesensor[i]);
-    int tlog =readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i));
+    int tlog = readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i));
     listlogsensor[i].set_deltatimelog(tlog);
     Serial.println(tlog);
-    int plog =readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH));
+    int plog = readIntFromEEPROM((EEPROMSTRINGLENGTH * numsensors) + (EEPROMINTLENGTH * i) + (numsensors * EEPROMINTLENGTH));
     listlogsensor[i].set_percentatgelog(plog);
     Serial.println(plog);
   }
@@ -946,16 +946,17 @@ void loop()
     // this temporary copy is necessary to protect the original data
     //   because strtok() used in parseData() replaces the commas with \0
     remotetable = "\n MESSAGE RECECIVED \n\r";
-    remotetable = remotetable +"\n LOG Features \n\r";
-    for (int i = 0;i<numsensors; i++){
-      remotetable = remotetable+i+" name: "+logicnamesensor[i] + ", logtime: " + String(listlogsensor[i].get_deltatimelog())+ "s, %log: "+String(listlogsensor[i].get_percentatgelog());
+    remotetable = remotetable + "\n LOG Features \n\r";
+    for (int i = 0; i < numsensors; i++)
+    {
+      remotetable = remotetable + i + " name: " + logicnamesensor[i] + ", logtime: " + String(listlogsensor[i].get_deltatimelog()) + "s, %log: " + String(listlogsensor[i].get_percentatgelog());
       remotetable = remotetable + "\n\r";
     }
     updatedsecondtimereference(); ////////////////////
     unsigned long t = Globaltime;
     char time[31];
     sprintf(time, "%02d:_%02d_%02d_%02d:%02d:%02d", year(t), month(t), day(t), hour(t), minute(t), second(t));
-    remotetable = remotetable + time+ "\n\r";
+    remotetable = remotetable + time + "\n\r";
     showParsedData(remotetable);
     newData = false;
   }
@@ -1047,25 +1048,26 @@ void loop()
     }
   }
 
-  if(uploadcommand == true){
+  if (uploadcommand == true)
+  {
     uploadcommand = false;
     while (!ftp.connect(FTPserver, user, pass))
-      {
-        Serial.println(F("Error connecting to FTP server"));
-        delayfunction(10);
-      }
-  // Restart directory from server
-      restartDirectory();
-      ftp.stop();
-      while (!ftp.connect(FTPserver, user, pass))
-      {
-        Serial.println(F("Error connecting to FTP server"));
-        delayfunction(100);
-      }
-      updateDirectory();
-      File fh = SD.open(fileName, FILE_READ);
-      ftp.store(fileName, fh);
-      ftp.stop();
+    {
+      Serial.println(F("Error connecting to FTP server"));
+      delayfunction(10);
+    }
+    // Restart directory from server
+    restartDirectory();
+    ftp.stop();
+    while (!ftp.connect(FTPserver, user, pass))
+    {
+      Serial.println(F("Error connecting to FTP server"));
+      delayfunction(100);
+    }
+    updateDirectory();
+    File fh = SD.open(fileName, FILE_READ);
+    ftp.store(fileName, fh);
+    ftp.stop();
   }
   updatedsecondtimereference();
   unsigned long t = Globaltime;
@@ -1078,7 +1080,7 @@ void loop()
     checkinternetStatus();
     equalinternalandservertimmer();
   }
-  
+
   t = Globaltime;
   sprintf(timebufferchange, "%02d", day(t));
   if ((timechange == true) || (strcmp(timebufferchange, min) != 0))
@@ -1098,7 +1100,7 @@ void loop()
         Serial.println(F("Error connecting to FTP server"));
         delayfunction(10);
       }
-  // Restart directory from server
+      // Restart directory from server
       restartDirectory();
       ftp.stop();
       while (!ftp.connect(FTPserver, user, pass))
