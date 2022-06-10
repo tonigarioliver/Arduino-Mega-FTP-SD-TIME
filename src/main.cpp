@@ -69,10 +69,9 @@ unsigned long long Globaltime = 0;
 unsigned long long lastmillis = 0;
 float lastsecond = 0;
 
-  int startyear = 2022;
-  unsigned long long summerend[] = {1667095200,1748570400,1729994400,1761444000,1792893600};
-  unsigned long long summerstart[] = {1648346400,1679796000,1711850400,1743300000,1774749600,1806306526};
-
+int startyear = 2022;
+unsigned long long summerend[] = {1667095200, 1748570400, 1729994400, 1761444000, 1792893600};
+unsigned long long summerstart[] = {1648346400, 1679796000, 1711850400, 1743300000, 1774749600, 1806306526};
 
 ////Other Global variables
 bool reset = true;
@@ -127,16 +126,19 @@ bool writeSD(char *filename, String c)
   return false;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-unsigned long checktimeoffset(){
+unsigned long checktimeoffset()
+{
   unsigned long offset = 0;
   char currentyear[5];
   sprintf(currentyear, "%02d", year(Globaltime));
   String yearnow = String(currentyear);
   int index = (yearnow.toInt()) - startyear;
-  if((Globaltime>summerstart[index] && Globaltime<summerend[index])){
+  if ((Globaltime > summerstart[index] && Globaltime < summerend[index]))
+  {
     offset = 3600;
   }
-  if((Globaltime<summerstart[index+1] && Globaltime>summerend[index])){
+  if ((Globaltime < summerstart[index + 1] && Globaltime > summerend[index]))
+  {
     offset = 0;
   }
   Serial.println(long(Globaltime));
