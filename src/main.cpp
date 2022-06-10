@@ -938,13 +938,7 @@ void setup()
   int delaybeforestart = millis();
   lastmillis = lastmillis + delaybeforestart;
   updatedsecondtimereference();
-  char buff[32];
-  sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(Globaltime), month(Globaltime), year(Globaltime), hour(Globaltime), minute(Globaltime), second(Globaltime));
-  Serial.println("setup");
-  Serial.println(buff);
   Globaltime = Globaltime + checktimeoffset();
-  sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(Globaltime), month(Globaltime), year(Globaltime), hour(Globaltime), minute(Globaltime), second(Globaltime));
-  Serial.println(buff);
 
   while (!updatetimevalues())
   {
