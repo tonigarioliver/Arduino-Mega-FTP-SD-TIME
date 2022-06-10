@@ -69,6 +69,11 @@ unsigned long long Globaltime = 0;
 unsigned long long lastmillis = 0;
 float lastsecond = 0;
 
+  int startyear = 2022;
+  unsigned long long summerend[] = {1667095200,1748570400,1729994400,1761444000,1792893600};
+  unsigned long long summerstart[] = {1648346400,1679796000,1711850400,1743300000,1774749600,1806306526};
+
+
 ////Other Global variables
 bool reset = true;
 int numsamples = 20;
@@ -121,7 +126,24 @@ bool writeSD(char *filename, String c)
   }
   return false;
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+unsigned long checktimeoffset(){
+  unsigned long offset = 0;
+  char currentyear[5];
+  sprintf(currentyear, "%02d", year(Globaltime));
+  String yearnow = String(currentyear);
+  int index = (yearnow.toInt()) - startyear;
+  if((Globaltime>summerstart[index] && Globaltime<summerend[index])){
+    offset = 3600;
+  }
+  if((Globaltime<summerstart[index+1] && Globaltime>summerend[index])){
+    offset = 0;
+  }
+  Serial.println(long(Globaltime));
+  Serial.println(index);
+  Serial.println(offset);
+  return offset;
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 String getmilisecondsformat(float milis)
 {
@@ -666,6 +688,7 @@ bool checkinternetStatus()
   }
   return succesinternetStatus;
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void equalinternalandservertimmer()
 {
@@ -674,6 +697,7 @@ void equalinternalandservertimmer()
   lastmillis = delaybeforestart;
   lastsecond = 0;
   updatedsecondtimereference();
+  Globaltime = Globaltime + checktimeoffset();
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool updatetimevalues()
@@ -684,6 +708,7 @@ bool updatetimevalues()
   if (reset == true)
   {
     t = timeClient.getEpochTime();
+    t = t + checktimeoffset();
   }
   else
   {
@@ -862,6 +887,7 @@ void executeCMD(char *cmd, char *data)
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+///////////////////////////////////////////////////////////////////////////////////////
 void setup()
 {
   Serial.begin(9600);
@@ -910,6 +936,13 @@ void setup()
   int delaybeforestart = millis();
   lastmillis = lastmillis + delaybeforestart;
   updatedsecondtimereference();
+  char buff[32];
+  sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(Globaltime), month(Globaltime), year(Globaltime), hour(Globaltime), minute(Globaltime), second(Globaltime));
+  Serial.println("setup");
+  Serial.println(buff);
+  Globaltime = Globaltime + checktimeoffset();
+  sprintf(buff, "%02d.%02d.%02d %02d:%02d:%02d", day(Globaltime), month(Globaltime), year(Globaltime), hour(Globaltime), minute(Globaltime), second(Globaltime));
+  Serial.println(buff);
 
   while (!updatetimevalues())
   {
